@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passagem de Turno · Filtros e CAC</title>
+<style>
+:root{
+  --navy:#233176; --navy-d:#141C4A; --blue:#0069B5; --blue-d:#0B4F8A; --orange:#FAA61A; --yellow:#FEBA12;
+  --ink:#151A22; --muted:#68707C; --bg:#F5F6F7; --card:#FFFFFF; --line:#E1E4E8; --infill:#FFF5D9; --inline:#F3D27A;
+  --ok:#2E7D32; --ok-bg:#E8F4E9; --bad:#B00020; --bad-bg:#FDECEE; --bad-line:#F4B4BC; --warn:#8A5A00; --warn-bg:#FFF3D6;
+  --zap:#1FA855; --prox:#B4472B; color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#D9DCE3;color:var(--ink);font:400 16px/1.35 Arial,'Segoe UI',sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+/* barra do protótipo */
+.proto{position:sticky;top:0;z-index:20;background:#1B1F2E;color:#C9CEDB;font-size:13px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 16px}
+.proto b{color:#fff}
+.proto .seg{display:inline-flex;border:1px solid #444B60;border-radius:6px;overflow:hidden}
+.proto .seg button{background:none;border:0;color:#C9CEDB;padding:5px 11px;font-size:13px}
+.proto .seg button.on{background:var(--orange);color:#151A22;font-weight:700}
+.proto .dir{margin-left:auto;color:#8A90A3}
+.palco{padding:16px 0 40px;transition:padding .2s}
+.app{background:var(--bg);margin:0 auto;padding:12px 12px 28px;min-height:calc(100vh - 80px);max-width:760px;display:flex;flex-direction:column;gap:12px}
+.app.wide{max-width:1100px}
+body.v-cel .app{max-width:390px;border-radius:26px;box-shadow:0 0 0 10px #10142A,0 30px 60px -20px rgba(0,0,0,.5);min-height:780px}
+body.v-cel .palco{padding:30px 16px 50px}
+body.v-cel .app .duas{grid-template-columns:1fr}
+@media (max-width:600px){html,body{background:var(--bg)}.palco{padding:0}.proto{position:static}.proto .dir{display:none}}
+/* cabeçalho */
+.cab{background:linear-gradient(90deg,var(--navy-d) 0%,var(--navy) 45%,var(--blue) 100%);color:#fff;border-radius:3px;padding:16px 18px 20px}
+.cab img{height:34px;display:block}
+.cab h1{font:700 25px/1.08 Arial,sans-serif;margin:12px 0 0;text-transform:uppercase}
+.cab .bar{width:52px;height:5px;background:var(--orange);margin:10px 0}
+.cab p{font-size:14px;color:#DCE3F2;margin:0}
+h2{font-size:21px;margin:6px 4px 0;color:var(--ink)}
+h3{font-size:17px;margin:6px 4px 0}
+.rot{font-weight:700;font-size:16px;margin:4px 4px -4px}
+.mini{font-size:12px;color:var(--muted);margin:0 2px}
+/* botões */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;padding:8px 14px;border-radius:6px;border:2px solid var(--blue);background:#fff;color:var(--blue-d);font-weight:700;font-size:17px;text-align:center}
+.btn:hover{background:#EEF4FB}
+.btn.pri{background:var(--orange);border-color:var(--orange);color:var(--ink);min-height:52px}
+.btn.pri:hover{background:#E8940A}
+.btn.zap{background:var(--zap);border-color:var(--zap);color:#fff}
+.btn.zap:hover{background:#178A45}
+.btn.ok{border-color:var(--ok);color:var(--ok);background:#fff}
+.btn.ok:hover{background:var(--ok-bg)}
+.btn.perigo{border-color:var(--bad);color:var(--bad)}
+.btn.peq{min-height:38px;font-size:15px;width:auto}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.linha{display:flex;gap:10px;flex-wrap:wrap}.linha>*{flex:1 1 160px}
+/* campos */
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;background:var(--infill);border:1px solid var(--inline);border-radius:3px;padding:10px 12px;font-size:17px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(0,105,181,.18)}
+textarea{min-height:84px;resize:vertical}
+.cx{background:var(--card);border:1px solid var(--line);border-radius:3px;padding:12px 14px}
+.agora .k{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.agora .v{font-size:28px;font-weight:700;margin:2px 0}
+.chips4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chip{height:50px;border:2px solid var(--line);background:#fff;border-radius:8px;font-weight:700;font-size:22px}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{color:#fff;font-size:12px;font-weight:700;padding:5px 8px;border-radius:3px}
+/* checklist */
+.banner{color:#fff;border-radius:3px;padding:12px 14px}
+.banner .e{font-size:11px;font-weight:700;letter-spacing:.08em;opacity:.9;text-transform:uppercase}
+.banner .n{font-size:24px;font-weight:700;text-transform:uppercase;margin:3px 0}
+.banner .s{font-size:12px;opacity:.85}
+.prog{height:6px;background:rgba(255,255,255,.25);border-radius:3px;margin-top:10px;overflow:hidden}.prog i{display:block;height:100%;background:var(--orange)}
+.perg{display:flex;flex-direction:column;gap:8px}
+.perg .t{font-weight:700;font-size:16px;margin:0 4px}
+.perg.falta .t{color:var(--bad)}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{min-height:46px;border:2px solid var(--line);background:#fff;border-radius:6px;font-weight:700;font-size:16px;padding:6px}
+.opt.sm{font-size:14px}
+.opt.okon{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.badon{background:var(--bad);border-color:var(--bad);color:#fff}
+.obs{background:var(--bad-bg)!important;border-color:var(--bad-line)!important}
+.perg.trava{opacity:.42}.perg.trava button,.perg.trava textarea,.perg.trava input{cursor:not-allowed}
+.req{color:var(--bad);font-weight:700;font-size:13px;margin:0 4px}
+.dica{font-size:13px;color:var(--muted);margin:0 4px}
+.cond .t{color:var(--bad)}
+/* quadro */
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.at{min-height:48px;border:2px solid var(--line);background:#fff;border-radius:6px;font-weight:700;font-size:14px;padding:6px 8px;line-height:1.2}
+.at.prox{background:var(--prox);border-color:var(--prox);color:#fff}
+.at.feito{background:var(--ok);border-color:var(--ok);color:#fff}
+.tit-prox{color:var(--prox)}.tit-feito{color:var(--ok)}
+.step{display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.step span{flex:1}
+.step button{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:#fff;font-size:22px;font-weight:700;line-height:1}
+.step button.mais{background:var(--navy);border-color:var(--navy);color:#fff}
+.step b{width:34px;text-align:center;font-size:20px}
+.pesos{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.pesos label{font-size:12px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+/* relatório */
+.salvo{background:var(--ok-bg);border:2px solid var(--ok);border-radius:4px;padding:10px 12px;color:var(--ok)}
+.salvo small{display:block;color:var(--ink);font-size:13px}
+.rel{font-family:Arial,sans-serif;font-size:13px;color:var(--ink);background:#fff;padding:14px;border:1px solid var(--line);border-radius:3px}
+.rel .h{font-size:20px;font-weight:700;color:var(--navy)}
+.rel .m{color:var(--muted);margin:2px 0 8px}
+.rel .st{padding:8px 10px;border-radius:3px;font-weight:700}
+.rel .sec{margin-top:12px}
+.rel .sec>div:first-child{color:#fff;font-weight:700;padding:6px 10px;border-radius:3px 3px 0 0}
+.rel .sec>div:last-child{border:1px solid var(--line);border-top:0;padding:8px 10px;border-radius:0 0 3px 3px}
+.rel .eq{margin-top:8px;padding:2px 0 2px 10px;border-left:5px solid}
+.rel .pes{display:flex;flex-wrap:wrap;gap:6px}.rel .pes div{flex:1 1 140px;border:1px solid var(--line);border-radius:3px;padding:4px 8px;font-size:12px}
+.rel .gerado{color:var(--muted);font-size:11px;margin-top:10px}
+/* adm */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:3px;padding:10px 12px}
+.tile .k{font-size:12px;font-weight:700;color:var(--muted)}.tile .v{font-size:26px;font-weight:700}
+table.top{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+table.top th{background:var(--navy);color:#fff;text-align:left;padding:7px 8px;font-weight:400}
+table.top td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:top}
+table.top td:last-child,table.top th:last-child{text-align:right;color:var(--bad);font-weight:700;white-space:nowrap}
+table.top th:last-child{color:#fff;font-weight:400}
+.pass{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.pass div{flex:1;min-width:0}.pass b{display:block;font-size:16px}.pass small{font-size:14px}
+.tg{display:flex;align-items:center;gap:10px;padding:8px 4px}
+.tg span{flex:1;font-weight:700}
+.sw{width:52px;height:28px;border-radius:14px;background:#C8C8C8;border:0;position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--orange)}.sw.on::after{left:28px}
+.tg em{font-style:normal;font-size:14px;width:62px}
+/* editor */
+.ed-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.ed-tabs button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px}
+.ed-tabs button::first-letter{text-transform:uppercase}
+.ed-tabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.ed-q{background:#fff;border:1px solid var(--line);border-left:5px solid var(--navy);border-radius:3px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.ed-q.tx{border-left-color:var(--bad);margin-left:22px}
+.ed-q .topo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ed-q .topo b{font-size:14px;color:var(--muted);min-width:28px}
+.ed-q .topo select{width:auto;flex:1 1 180px;font-size:14px;padding:6px 8px}
+.ed-q textarea{min-height:60px;font-size:15px}
+.ic{width:36px;height:36px;border:1px solid var(--line);background:#fff;border-radius:4px;font-size:16px;flex:none}
+.ic:hover{background:#EEF1F6}
+.ed-eq{display:grid;grid-template-columns:1fr 170px 44px auto auto;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:3px;padding:8px}
+.ed-eq input[type=color]{width:44px;height:40px;border:1px solid var(--line);padding:2px;background:#fff}
+.ed-eq select,.ed-eq input[type=text]{font-size:15px;padding:8px}
+@media (max-width:600px){.ed-eq{grid-template-columns:1fr 1fr}}
+body.v-cel .ed-eq{grid-template-columns:1fr 1fr}
+.nota{background:#EEF4FB;border:1px solid #C9DDF0;border-radius:3px;padding:10px 12px;font-size:14px;color:#21405F}
+.rod{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+.rod span{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px}.rod i{color:var(--orange);font-style:normal}
+/* aviso (Notify) */
+.toast{position:fixed;left:50%;top:52px;transform:translateX(-50%);z-index:50;max-width:min(560px,calc(100% - 32px));padding:12px 16px;border-radius:4px;color:#fff;font-weight:700;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.success{background:var(--ok)}.toast.warn{background:#9A6700}.toast.error{background:var(--bad)}.toast.info{background:var(--blue)}
+/* fotos no app */
+.btn.foto{border-style:dashed;min-height:44px;font-size:15px}
+.mini-fotos{display:flex;flex-wrap:wrap;gap:8px}
+.mini-fotos span{position:relative;width:72px}
+.mini-fotos img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
+.mini-fotos button{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:0;background:var(--bad);color:#fff;font-size:12px;line-height:24px;padding:0}
+.mini-fotos i{display:block;font-style:normal;font-size:11px;color:var(--blue-d);font-weight:700;text-align:center}
+.fotos-q{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fq{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.fq img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block}
+.fq-n{font-size:12px;font-weight:700;color:var(--blue-d)}
+.fq input{font-size:14px;padding:7px 8px}
+.fq .btn{width:100%}
+/* páginas do PDF (prévia na tela e arquivo) */
+.pv-titulo{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:4px 2px -4px}
+.pv-pags{display:flex;flex-direction:column;align-items:center;gap:12px}
+.pv-pg{overflow:hidden;box-shadow:0 2px 10px rgba(20,26,58,.18);background:#fff;flex:none}
+.previa{position:fixed;inset:0;z-index:60;background:#4A5060;overflow:auto;padding:0 16px 30px}
+.pv-bar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:#1B1F2E;color:#fff;margin:0 -16px 16px;padding:10px 16px}
+.pv-bar span{display:flex;gap:8px}
+.pdfdoc{width:794px}
+.pdfdoc .pdfpg{width:794px;height:1123px;box-sizing:border-box;padding:42px 45px 0;position:relative;overflow:hidden;background:#fff;color:#151A22;
+  font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.35}
+.pdfdoc .pdfpg *{box-sizing:border-box}
+.pdfdoc .pdfrod{position:absolute;left:45px;right:45px;bottom:18px;display:flex;justify-content:space-between;font-size:10px;color:#68707C;border-top:1px solid #E1E4E8;padding-top:6px}
+.pdfdoc h1{font-size:27px;font-weight:800;color:#233176;margin:0 0 3px;line-height:1.15}
+.pdfdoc .h1b{margin-top:22px;margin-bottom:10px}
+.pdfdoc .sub1{margin:0 0 12px;color:#68707C;font-size:12.5px}
+.pdfdoc h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 7px;display:flex;align-items:center;gap:7px;font-weight:700}
+.pdfdoc h2::before{content:"";width:11px;height:11px;border-radius:3px;background:currentColor;flex:none}
+.pdfdoc .h-ruim{color:#B00020}.pdfdoc .h-pend{color:#B4472B}.pdfdoc .h-alerta{color:#8A5A00}.pdfdoc .h-neutro{color:#233176}.pdfdoc .h-ok{color:#2E7D32}
+.pdfdoc .topo{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,#141C4A,#233176 55%,#0069B5);border-radius:10px;padding:14px 18px;color:#fff}
+.pdfdoc .topo img{height:34px;display:block}
+.pdfdoc .topo div{text-align:right}.pdfdoc .topo b{display:block;font-size:15px}.pdfdoc .topo span{font-size:12px;color:#DCE3F2}
+.pdfdoc .hero{display:flex;align-items:center;gap:22px;margin:16px 0 12px;padding:16px;border:2px solid #233176;border-radius:10px;background:#F4F6FB}
+.pdfdoc .turnos{display:flex;align-items:center;gap:10px;flex:none}
+.pdfdoc .t{width:82px;height:90px;border-radius:10px;background:#fff;border:2px solid #233176;color:#233176;font-size:46px;font-weight:800;line-height:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pdfdoc .t small{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;color:#68707C}
+.pdfdoc .t.entra{background:#233176;color:#fff}.pdfdoc .t.entra small{color:#DCE3F2}
+.pdfdoc .seta{font-size:30px;color:#FAA61A;font-weight:800}
+.pdfdoc .quem .k{font-size:22px;font-weight:800;line-height:1.15;color:#233176}
+.pdfdoc .quem .v{margin-top:6px}.pdfdoc .quem .v2{font-size:12px;color:#68707C;margin-top:6px}
+.pdfdoc .placar{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.pdfdoc .pl{border-radius:9px;padding:11px;border:1.5px solid}
+.pdfdoc .pl b{display:block;font-size:27px;font-weight:800;line-height:1}.pdfdoc .pl b small{font-size:15px;font-weight:600}
+.pdfdoc .pl span{display:block;font-size:11.5px;font-weight:600;margin-top:4px}
+.pdfdoc .pl.ruim{background:#FDECEE;border-color:#F4B4BC;color:#B00020}.pdfdoc .pl.ok{background:#E8F4E9;border-color:#A9D3AC;color:#2E7D32}
+.pdfdoc .pl.alerta{background:#FFF3D6;border-color:#F0D28A;color:#8A5A00}.pdfdoc .pl.neutro{background:#EEF1F8;border-color:#C9D0E6;color:#233176}
+.pdfdoc .lista-atencao{display:flex;flex-direction:column;gap:7px}
+.pdfdoc .item{border:1px solid #F4B4BC;border-left:7px solid #B00020;border-radius:7px;padding:9px 13px;background:#fff}
+.pdfdoc .itop{display:flex;align-items:center;gap:8px}
+.pdfdoc .pchip{display:inline-block;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.pdfdoc .resp-ruim{color:#B00020;font-weight:800;font-size:11.5px;text-transform:uppercase}
+.pdfdoc .fref{margin-left:auto;font-size:11px;font-weight:700;color:#0069B5;border:1px solid #0069B5;border-radius:4px;padding:1px 6px}
+.pdfdoc .perg{font-weight:700;margin-top:6px}
+.pdfdoc .pobs{margin-top:3px;color:#3B4250}
+.pdfdoc .det{margin-top:3px;font-size:13px}.pdfdoc .det b{color:#B00020}
+.pdfdoc .tudook{background:#E8F4E9;border:1px solid #A9D3AC;color:#2E7D32;font-weight:700;border-radius:7px;padding:10px 13px}
+.pdfdoc .duas{display:grid;grid-template-columns:1.15fr 1fr;gap:22px}
+.pdfdoc .pend{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.pdfdoc .pend li{display:flex;gap:9px;align-items:flex-start;font-weight:600}
+.pdfdoc .box{flex:none;width:15px;height:15px;border:1.5px solid #B4472B;border-radius:3px;margin-top:2px}
+.pdfdoc .naofeito{background:#FFF3D6;border:1px solid #F0D28A;border-radius:7px;padding:9px 11px}
+.pdfdoc .naofeito p{margin:6px 0 0;color:#8A5A00;font-size:13px}
+.pdfdoc .med{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #E1E4E8;padding:6px 0;font-size:13px}.pdfdoc .med b{white-space:nowrap}
+.pdfdoc .obsl{margin:0;padding-left:20px}.pdfdoc .obsl li{margin-bottom:4px}
+.pdfdoc .vazio{color:#68707C}
+.pdfdoc .tabwrap{border:1px solid #E1E4E8;border-radius:8px;overflow:hidden}
+.pdfdoc .mat{width:100%;border-collapse:collapse;font-size:12px}
+.pdfdoc .mat th{color:#fff;font-size:10.5px;padding:7px 3px;text-align:center;width:74px;line-height:1.15}
+.pdfdoc .mat th.it{background:#233176;text-align:left;width:auto;padding-left:10px;font-size:12px}
+.pdfdoc .mat td{border-top:1px solid #EEF0F3;padding:5px 3px;text-align:center;font-weight:800;font-size:13px}
+.pdfdoc .mat td.it{text-align:left;font-weight:400;font-size:12px;padding-left:10px}
+.pdfdoc .mat tr:nth-child(even) td{background:#FAFBFC}
+.pdfdoc .mat td.v{color:#2E7D32}.pdfdoc .mat td.x{background:#FDECEE!important;color:#B00020}.pdfdoc .mat td.na{color:#B8BDC6;font-weight:400}
+.pdfdoc .mat td.nfc{color:#8A5A00;background:#FFF3D6!important;font-size:9.5px;font-weight:600}.pdfdoc .mat td.num{font-size:11px;color:#233176;white-space:nowrap}
+.pdfdoc .duas2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start}
+.pdfdoc .card{border:1px solid #E1E4E8;border-radius:8px;overflow:hidden}
+.pdfdoc .ch{color:#fff;font-weight:700;font-size:13px;padding:7px 11px;display:flex;justify-content:space-between}
+.pdfdoc .card table{width:100%;border-collapse:collapse;font-size:11.5px}
+.pdfdoc .card td{padding:5px 8px;border-top:1px solid #EEF0F3;vertical-align:top}
+.pdfdoc .card td:first-child{width:20px;color:#68707C;text-align:right}
+.pdfdoc .card td:last-child{text-align:right;font-weight:700;white-space:nowrap}
+.pdfdoc .card td.v{color:#2E7D32}.pdfdoc .card td.x{color:#B00020}.pdfdoc .card td.num{color:#233176}.pdfdoc .card td.na{color:#B8BDC6}
+.pdfdoc .card tr.r td{background:#FDECEE}.pdfdoc .card tr.sub td{background:#FDECEE;font-size:11px;padding-top:0;border-top:0;text-align:left;font-weight:400}
+.pdfdoc .card.nf{border-style:dashed}.pdfdoc .vazio2{padding:10px;color:#8A5A00;font-size:12px}
+.pdfdoc .q{margin-top:6px}
+.pdfdoc .feito{margin:0;padding:0;list-style:none}.pdfdoc .feito li{padding:6px 0;border-bottom:1px solid #E1E4E8}
+.pdfdoc .feito li::before{content:"✓  ";color:#2E7D32;font-weight:800}
+.pdfdoc .pcx{width:100%;border-collapse:collapse}.pdfdoc .pcx td{padding:6px 0;border-bottom:1px solid #E1E4E8}
+.pdfdoc .pcx td:last-child{text-align:right;font-weight:800;font-size:16px;color:#233176}
+.pdfdoc .fotos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pdfdoc figure{margin:0;border:1px solid #E1E4E8;border-radius:8px;overflow:hidden;background:#fff}
+.pdfdoc .fimg{position:relative;height:230px;background:#EEF0F3}
+.pdfdoc .fimg img{display:block;width:100%;height:100%;object-fit:cover}
+.pdfdoc .fn{position:absolute;left:8px;top:8px;background:#0069B5;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px}
+.pdfdoc figcaption{padding:8px 10px;display:flex;flex-direction:column;gap:4px;align-items:flex-start;font-size:12.5px}
+.pdfdoc figcaption small{color:#68707C;font-size:11px}
+.pdfdoc .fim{margin-top:20px;text-align:center;color:#68707C;font-size:11px}
+
+@page{size:A4;margin:0}
+@media print{
+  body.imprimindo>*:not(#impressao){display:none!important}
+  body.imprimindo #impressao{display:block!important}
+  body.imprimindo .pdfpg{break-after:page;box-shadow:none;margin:0}
+}
+</style>
+</head>
+<body>
+<div class="proto">
+  <b>Protótipo HTML</b><span>do app Power Apps · os dados ficam só neste navegador</span>
+  <span class="seg" id="vis"><button data-v="auto" class="on">Automático</button><button data-v="cel">Celular</button><button data-v="pc">Computador</button></span>
+  <span class="dir">Desenvolvido por Hamilton Lira</span>
+</div>
+<div class="palco"><div class="app" id="app"></div></div>
+<div id="toast" class="toast" hidden></div>
+<input type="file" id="fileFoto" accept="image/*" multiple hidden>
+<div id="previa" class="previa" hidden></div>
+<div id="impressao" style="display:none"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const PADRAO = {"versao": 2, "operadores": ["Alex", "Alberto", "Alan", "Luan", "Renan", "Wellington"], "turnos": ["A", "B", "C", "D"], "equip": [{"cod": "refino", "nome": "Filtro do refino", "tipo": "refino", "ativo": true, "cor": "#233176"}, {"cod": "secundario", "nome": "Filtro secundário", "tipo": "filtro", "ativo": true, "cor": "#0069B5"}, {"cod": "escoria", "nome": "Filtro de escória", "tipo": "filtro", "ativo": true, "cor": "#6A4C93"}, {"cod": "prim01", "nome": "Filtro primário 01", "tipo": "filtro", "ativo": true, "cor": "#00796B"}, {"cod": "prim02", "nome": "Filtro primário 02", "tipo": "filtro", "ativo": true, "cor": "#3B4250"}, {"cod": "pneg", "nome": "Filtro pressão negativa", "tipo": "pneg", "ativo": true, "cor": "#8A5A00"}, {"cod": "tp", "nome": "Transporte pneumático", "tipo": "tp", "ativo": true, "cor": "#B4472B"}, {"cod": "cac", "nome": "CAC", "tipo": "cac", "ativo": true, "cor": "#1C3F86"}], "perg": {"refino": [{"q": "p1", "texto": "As pressões diferenciais das mangas estão abaixo de 150 mmca e as dos HEPAs abaixo de 60 mmca?", "kind": "op", "op1": "Dentro do parâmetro", "op2": "Fora do parâmetro"}, {"q": "p2", "texto": "A pressão de entrada e saída do filtro está dentro do normal?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p3", "texto": "O sistema de pulso está funcionando corretamente, com tempo e frequência ajustados (tempo 150 ms e intervalo 5 min)?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "par", "texto": "Qual a pressão da linha de ar comprimido?", "kind": "num", "un": "bar"}, {"q": "p4", "texto": "O filtro está operando sem entrada de ar falso?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p5", "texto": "Os martelos pneumáticos estão fixados corretamente e sem trincas na base?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6", "texto": "Todas as moegas estão com o nível de pó abaixo do sensor de nível?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6m", "texto": "Descreva os motivos pelos quais não conseguiu manter as moegas com pouco pó.", "kind": "tx", "depq": "p6", "depv": "Não"}, {"q": "p7", "texto": "O exaustor está sem ruído e com a vibração dos mancais dentro do aceitável?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p8", "texto": "A válvula rotativa do defagulhador está funcionando corretamente?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p9", "texto": "Os compartimentos do filtro estão sem vazamentos de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p10", "texto": "A IHM do filtro está sem alarmes?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p11", "texto": "A área do filtro está limpa, sem acúmulo de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}], "filtro": [{"q": "p1", "texto": "As pressões diferenciais das mangas estão abaixo de 150 mmca e as dos HEPAs abaixo de 60 mmca?", "kind": "op", "op1": "Dentro do parâmetro", "op2": "Fora do parâmetro"}, {"q": "p2", "texto": "A pressão de entrada e saída do filtro está dentro do normal?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p3", "texto": "O sistema de pulso está funcionando corretamente, com tempo e frequência ajustados (tempo 150 ms e intervalo 5 min)?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p4", "texto": "O filtro está operando sem entrada de ar falso?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p5", "texto": "Os moto vibradores estão fixados corretamente e sem trincas na base?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6", "texto": "Todas as moegas estão com o nível de pó abaixo do sensor de nível?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6m", "texto": "Descreva os motivos pelos quais não conseguiu manter as moegas com pouco pó.", "kind": "tx", "depq": "p6", "depv": "Não"}, {"q": "p7", "texto": "O exaustor está sem ruído e com a vibração dos mancais dentro do aceitável?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p8", "texto": "A válvula rotativa do defagulhador está funcionando corretamente?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p9", "texto": "Os compartimentos do filtro estão sem vazamentos de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p10", "texto": "A IHM do filtro está sem alarmes?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p11", "texto": "A área do filtro está limpa, sem acúmulo de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}], "pneg": [{"q": "p1", "texto": "As pressões diferenciais das mangas estão abaixo de 150 mmca e as dos HEPAs abaixo de 60 mmca?", "kind": "op", "op1": "Dentro do parâmetro", "op2": "Fora do parâmetro"}, {"q": "p2", "texto": "A pressão de entrada e saída do filtro está dentro do normal?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p3", "texto": "O sistema de pulso está funcionando corretamente, com tempo e frequência ajustados (tempo 150 ms e intervalo 5 min)?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p4", "texto": "O filtro está operando sem entrada de ar falso?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p5", "texto": "Os martelos pneumáticos estão fixados corretamente e sem trincas na base?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6", "texto": "Todas as moegas estão com o nível de pó abaixo do sensor de nível?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6m", "texto": "Descreva os motivos pelos quais não conseguiu manter as moegas com pouco pó.", "kind": "tx", "depq": "p6", "depv": "Não"}, {"q": "p7", "texto": "O exaustor está sem ruído e com a vibração dos mancais dentro do aceitável?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p8", "texto": "A pressão negativa no galpão está abaixo de -0,18 mmca em todas as áreas?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p10", "texto": "Os compartimentos do filtro estão sem vazamentos de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p11", "texto": "A IHM do filtro está sem alarmes?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p12", "texto": "A área do filtro está limpa, sem acúmulo de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}], "tp": [{"q": "p1", "texto": "As pressões dos sistemas estão dentro do padrão?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p2", "texto": "Todos os sistemas estão operando em modo automático?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p3", "texto": "As válvulas rotativas estão funcionando corretamente?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p4", "texto": "O pó está sendo enviado para apenas um silo?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p5", "texto": "As mangueiras estão sem deformidades?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6", "texto": "O sistema 900 está com tempo de transporte dentro do normal?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p7", "texto": "As linhas e conexões estão sem sinais de vazamento de pó?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p8", "texto": "A IHM está sem alarmes ativos?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p9", "texto": "O sistema está funcionando sem entupimentos?", "kind": "op", "op1": "Sim", "op2": "Não"}], "cac": [{"q": "p1", "texto": "O sistema de purga dos compressores está funcionando corretamente?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p1c", "texto": "Qual compressor não está com a purga funcionando?", "kind": "tx", "depq": "p1", "depv": "Não"}, {"q": "p2", "texto": "A pressão de ar comprimido ficou acima de 6 bar durante todo o turno?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p3", "texto": "As pressões e a vazão do ar foram registradas durante o turno?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p4", "texto": "O nível de óleo dos compressores está dentro do padrão?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p5", "texto": "Há um compressor em operação e outro em modo automático (auto restart)?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p6", "texto": "A quantidade de partidas dos compressores foi colocada no grupo?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p7", "texto": "As horas de funcionamento dos compressores foram colocadas no grupo?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p8", "texto": "O ΔP dos filtros dos secadores está dentro do permitido?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p9", "texto": "A IHM está sem alarmes ativos?", "kind": "op", "op1": "Sim", "op2": "Não"}, {"q": "p10", "texto": "Os compressores estão sem ruídos anormais?", "kind": "op", "op1": "Sim", "op2": "Não"}]}, "tipoNome": {"refino": "filtro de mangas", "filtro": "filtro de mangas", "pneg": "filtro de pressão negativa", "tp": "transporte pneumático", "cac": "central de ar comprimido"}, "atividades": ["Inspecionar filtros", "Acompanhar caixas PM01 e PM02", "Acompanhar sistema de limpeza do refino", "Purgar purgador dos manifolds do refino", "Acompanhar compressores (CAC)", "Acompanhar TP", "Pesagem das caixas", "Tombamento de caixas", "Lavagem de caixas", "Recolhimento de caixas para repor nos filtros", "Lavagem da rampa de acesso", "Lavagem da área do secundário", "Testes dos KCs do secundário", "Apoio à manutenção / elétrica"], "caixas": ["Retiradas · Primário 01", "Retiradas · Primário 02", "Retiradas · Refino", "Retiradas · Defagulhadores", "Retiradas · Secundário", "Tombadas", "Lavadas", "Repostas nos filtros"], "adm": {"usuario": "Wagner", "senha": "Wagner"}};
+const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABICAMAAAB7sTi/AAAAkFBMVEUFBQX9/f38sxRdXV0BaLQiMHba29rp6eijo6Tc397+ySFSXZRdVSn811k0isq3t7gtM01Yodf5u1P66Z38uhEwSFQWeMT31XP046hULx/37K776JAoaO9RaJ9VYJaQsdakruOs1vWgy+kjO4Jjp/+VYiKnz+v6zl5lefF3s96gr8sAAP89bbPZs20QFLCjoFuTpyPqAAAAMHRSTlMB+v4Q/v5hnR8p/NsO7O9MD+PmoZcO/zNqDBfRCBe3mxQVj/4GBmWnDKNbAQ9GCgtWoH/zAAAIz0lEQVR42u2cC3faOgyA1Qj8AMKjXLiFduvzrlt37/b//911EpLItvwItDs7DG1nZzNusL9IsiTbA/hAeYGL5AgiwAb0078XFFm4AMRqdeGQI0vY369Gc30hkVarJejVaDSaP15YpE1w/2W1rWBdNCshMwR9Px+NLrDSsqk8+6iR+UPl6C8SM8H56AKLRAWhdtx0JljDUn84rJ+zRHA1Gl1gER57+Bn4TL9RVhWsP3qpA70uAf4JBFfEBP94WDgDUU4mf7OwKhPcjn4hLPzNTfDlpiwKFpYxwSdbrT4QFrbyO6uVXk+KGpY3ys1Og8fqI2BZjFhgAY4RvH070raT1OrOmGDRwEqsgkfCUhm2Vv9baWFEq3cwRg4KngIMa88O67IoDrBm1mfGBL/NRyfD4kam/VBOS3nVihTK/blGgZQHWXGa1fxbGdFGlK5CHdNm/mKk73DEKjgpGFh1OUa7nv0YWGaM6LNSThdx5YjBRWZkehzaNYWIcPg5qRxUWkj6sApW29e8Cn0ELoTv+7Jl5cCy8psTYCkQEh0t0SBE31QZ+xUjAmgfEYVFm6vnSedJWI2DtEgx1NCpWrmwNrD/FmI1BFY9HdDo8LvqYZl5yCteNOnEwuoJqMjzhNFtdF+IHJaF7EDcElZ0NVwGPPtgWM1sbJ2v2zpYxjFeBUW05prULOU3Eb3yWV21Q8C8V/54U1JWBNaGC66OgXUYI3isOljIm6A9oSxYGGYV+Jb64ZhpgmVRcLB2m9AqOBRWO0bbVQtCIapXVj8CC8OaxbFSwTci8lDV+U3BwMIqF4yZ4ABY3RjJ/Nq2gw2gsvyIqEVyxpJlhhaV+mmNxuFCVL+q35J3ijG1ernxWBWTQ8y7j5pgPqx+5Exby4CMXXbBlxVINIFUlhn2AUaz3nVRnuUG6MOT8enGWQU7WP8tq59NmGA2LPKWW80icxaAttutIqU+NUQSoDYYFklY1Q9KGneQaBWJAHlDKUNE+OGbYAtrkzTBWtQgVj2svq1xu0QRaBaCVuhVc0jBQvt5Ihx02u8oxUrflEXBw4I9zDNYTdUgVgdY1iCd9Vy6k3M+y4FFFEtGAnRXA3V0FbydFDwsgEUgv7HkeZyGZa8/9UTsWKd+9XgVnhzpXSc+KVjVVyji5+IFDiAaHZ7DV94EG816yjHB8TgNy1mrwWPVwKI4/CkB2zcGS0Q9keW3yFcH5/CwLouQTLJMcJwBy41rXGfe6pKMTY4kvrmaJWPs0X54/92DTbCWTFRJWF4MyOQbtSOKKFY9P/r5EFicmlbVnE4WCxWHhbO7sAlmwhrnwPLjZSY3k2Ttkvz6bWveAFje87ySjTUQVq3uIiaYB2ucA4vJLZg8VpL5i0BVuO9wGqxIXYOFVQUur5PiJFjjcQ4sLg9j2qTDgq9ZMJ1jsHhNjefqkvPsCRNMwxpnwWJHxrTJULr37rASdQ3plreZEsNQWM/jLFh2LNX5nL5t8R6wcACsVF1DcluoxUmwxuMsWE7c6XuKBTKwPtIMyZqbA8uv8g2HNc6D5bDyYS0AP9LBc7Csog0RFlYquMqA9TzOg+XmMx6sRR87ZYUO4mRYJKUy74TX2uEmGIS1XU3HebD83M+BpYhR5ASlVkR+LCxhpe59vuPDOpxiOAHWHPTnPM3yWLmwmpLTgHRH0aCWjTMGwJJNztX+YcFCZq/rCFirezXL0yyflQOrYYV8Is2dYbALLupIWNJ6fU15ltEshO8yYoJlGtZ2JWbLn1mwPH/lwtLNDjqGSjSRBy6svshuWCRhqQ7WYSvf0iyMBleT8uY6BWt7Xy+9ObCYWpXt4NuxIm+nwk/nlFWgcGzWK1MnYS16WODB2kVXwcntYpmCtfpSs8oxQyvy6/f6pLONgi4sxe7VW5Pxy/UKet+T77NEV6VhzPBrbBUs1w8ziMMyJrhb4iwLFsuKwuq3QNHWD2kFh2RPQdgbFuCABbeIl14NlbUaIoGlo1W+UvyY4acorPnTvronkKVZnr9yYdFTG85CTounvWrResrB+ds7QV3XFCyyMakgFGe9xkzwoRppDNZ29UW3K0cSFq9XBBY9tIHO3qm2N1mrA1RCsLvGzn6sE4jbsLhgrdvDtXdyq85/TcIm+FgrTATWFvr64fKfBKwQq26cdhgZ2pYPpm6YlREjBGDZjPncMASrMsHaAnZhWPMnDZtujAlYKsTKfCL98ByDJz4SrBJda5uWbNVBHAtrYtRqVi/hQVjb1SM9ibvcRWEF9aodppOeoL8MiPQhmnTXeoljYSHIo2CZ4Oqxe6MBWNtvuvLsPSzeZ2GSVXO2yDkQ6cOKmZcAhMyaZz2ibv72oUmUR8AyJgizXfsQHtbqCXoTTMOKsKp9llfXQ24h4Gcjlbf1Gq6mK0uz3MRJDIZVrjU9NPovA8sEV+7xriWEYSGKyGEnrE6OeuEruxKA9hjwpz7Zrq1mYSB5Qu6AbxSWMUH6mnecZm3BNsEgLN2pRCeCS+98fth1d7b1FI2tmvPEoYPiaBZ+V+rObVjAnrJXghcG1uRWVJ4dYpq1+sLcsWBgTe/10r8OwMxNZ589re1NHeazULGT6kcdYY+fw3JgTdYP7re4sCalhqX/SA/WMw0cql3eYRdu2n3hKITI09A+tNCkLgqt0wzxi0GOuLCMCX61LgQg4+DXvglysJ7hw26T2zP4ReLCqnTGv6f61YJV3gB/ldWBNb1/h4s1v5sQWOUaOBB3FNardjwaEQJrNH3bn+GN3w6WCa7uWA4E1vX6BcJXpD/3rD7r+kLBucKa3GrYsT16WOXN97C6LHtY0wWc50XyA6zKs+MyDssEFbiBJKzRtFkt8UxhGROM6Mx1V7GZhVl1sEb3+hwtsINVmWDYFTWaVYrHuK4cYE3f4HzFwLLzG09erptVcJd61OfGsy/PGdZr6v7hdR1UpFwQGlgmv4Fzltdbncii7spS3+2S7toEpdM3fd7/ncr+IXn1UOrq/3FIpxZvojJBPGtc72g5n87aCP8HM7mI78Bd82UAAAAASUVORK5CYII=";
+const clone = o => JSON.parse(JSON.stringify(o));
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } }
+};
+let cfg = LS.get('pt_cfg', null); if(!cfg || cfg.versao !== PADRAO.versao) cfg = clone(PADRAO);
+let db = LS.get('pt_passagens', []);
+let S = { fotos:[], pdfFile:null, gerando:false, tela:'inicio', admin:false, login:false, naoFez:false, cur:null, rec:null, modo:'novo', salvo:false, volta:'inicio', edTab:'perguntas', edTipo:'filtro', draft:null, conf:{} };
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pad = n => String(n).padStart(2,'0');
+const fmt = d => { d = new Date(d); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes()); };
+const linhas = t => String(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
+const slug = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+
+let tt;
+function avisa(msg, tipo){ const t=$('toast'); t.className='toast '+(tipo||'info'); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true, 3200); }
+
+const cab = sub => `<div class="cab"><img src="${LOGO}" alt="Moura"><h1>Passagem de turno · Filtros e CAC</h1><div class="bar"></div><p>${sub}</p></div>`;
+const rod = `<div class="rod"><span><i>●</i> Desenvolvido por <b>Hamilton Lira</b></span></div>`;
+const tiposDe = () => Object.keys(cfg.perg);
+const bom = p => p.op1; const ruim = p => p.op2;
+
+/* ---------------------------------------------------------------- telas */
+function telaInicio(){
+  const ult = db[0];
+  const ops = cfg.operadores.map(o=>`<option ${S.ini.op===o?'selected':''}>${esc(o)}</option>`).join('');
+  const chips = (k) => cfg.turnos.map(t=>`<button class="chip ${S.ini[k]===t?'on':''}" onclick="A.turno('${k}','${t}')">${t}</button>`).join('');
+  const ativos = cfg.equip.filter(e=>e.ativo);
+  return cab('Checklist dos filtros, do transporte pneumático e da CAC') +
+  (ult ? `<button class="btn" onclick="A.ver(0,'inicio')">Ler a última passagem · ${fmt(ult.data_hora).slice(0,5)} ${fmt(ult.data_hora).slice(11)} (${ult.de}→${ult.para})</button>` : `<button class="btn" disabled>Nenhuma passagem anterior</button>`) +
+  `<button class="btn" onclick="A.adm()">Painel ADM</button>` +
+  (S.login ? `<div class="cx" style="display:flex;flex-direction:column;gap:8px"><b>Acesso ao Painel ADM</b>
+     <input type="text" id="lgU" placeholder="Usuário"><input type="password" id="lgS" placeholder="Senha" onkeydown="if(event.key==='Enter')A.entrar()">
+     <button class="btn" onclick="A.entrar()">Entrar no Painel ADM</button></div>` : '') +
+  `<h2>Identificação da passagem</h2>
+   <div class="cx agora"><div class="k">Data e hora (do celular)</div><div class="v" id="relogio">${fmt(new Date())}</div><div class="mini">Registradas automaticamente quando você toca em Começar.</div></div>
+   <div class="rot">Quem está fazendo a passagem</div>
+   <select onchange="S.ini.op=this.value"><option value="">Escolha seu nome</option>${ops}</select>
+   <div class="rot">Turno que está saindo</div><div class="chips4">${chips('de')}</div>
+   <div class="rot">Turno que vai entrar</div><div class="chips4">${chips('para')}</div>
+   <div class="rot">Equipamentos feitos neste turno</div>
+   <div class="dica">Todos vêm marcados. Toque para desmarcar o que não deu para fazer hoje.</div>
+   <div class="duas">${ativos.map(e=>{ const on=!S.ini.fora.includes(e.cod); return `<button class="at" style="${on?`background:${e.cor};border-color:${e.cor};color:#fff`:'color:var(--muted)'}" onclick="A.sel('${e.cod}')">${on?'✓ ':''}${esc(e.nome)}</button>`; }).join('')}</div>
+   <button class="btn pri" onclick="A.comecar()">Começar a passagem${S.ini.de&&S.ini.para?` (${S.ini.de}) → (${S.ini.para})`:''}</button>
+   <button class="btn" onclick="S.naoFez=!S.naoFez;R()">${S.naoFez?'Cancelar':'Não consegui fazer a passagem'}</button>` +
+  (S.naoFez ? `<div class="cx" style="display:flex;flex-direction:column;gap:8px"><b>Motivo de não ter feito a passagem</b>
+     <textarea id="motivo" placeholder="Ex.: parada geral, sem acesso à área, atendimento de emergência"></textarea>
+     <button class="btn pri" onclick="A.naoFez()">Registrar e avisar o próximo turno</button></div>` : '') + rod;
+}
+
+function pendente(p, r){
+  const a=r[p.q]||{}, v=String(a.resp||'').trim();
+  if(p.kind==='op') return !a.resp || (a.resp===p.op2 && !String(a.obs||'').trim());
+  if(p.kind==='num') return !v;
+  return (r[p.depq]||{}).resp===p.depv && !v;
+}
+function aplicaTrava(){
+  if(S.tela!=='eq') return;
+  const c=S.cur, e=c.etapas[c.idx], P=cfg.perg[e.tipo]||[], r=c.resp[e.cod];
+  let bloq=false;
+  P.forEach(p=>{ const el=document.querySelector(`.perg[data-q="${p.q}"]`); if(el){ el.classList.toggle('trava',bloq); el.querySelectorAll('button,textarea,input').forEach(x=>x.disabled=bloq); }
+    if(pendente(p,r)) bloq=true; });
+}
+function telaEq(){
+  const c=S.cur, e=c.etapas[c.idx], P=cfg.perg[e.tipo]||[], r=c.resp[e.cod];
+  const n=c.etapas.length, prox=c.etapas[c.idx+1];
+  let num=0;
+  const itens = P.map(p=>{
+    const a=r[p.q]||{}, falta=c.faltaVer&&pendente(p,r);
+    if(p.kind==='tx'){
+      const dep=r[p.depq]||{}; if(dep.resp!==p.depv) return '';
+      return `<div class="perg cond ${falta?'falta':''}" data-q="${p.q}"><div class="t">${esc(p.texto)} *</div>
+        <textarea oninput="A.tx('${p.q}',this.value)" placeholder="Obrigatório">${esc(a.resp||'')}</textarea></div>`;
+    }
+    num++;
+    if(p.kind==='num') return `<div class="perg ${falta?'falta':''}" data-q="${p.q}"><div class="t">${num}. ${esc(p.texto)} (${esc(p.un||'')}) *</div>
+        <input type="text" inputmode="decimal" placeholder="${esc(p.un||'')}" value="${esc(a.resp||'')}" oninput="A.tx('${p.q}',this.value)"></div>`;
+    const sm = (p.op1.length+p.op2.length)>12 ? ' sm':'';
+    return `<div class="perg ${falta?'falta':''}" data-q="${p.q}"><div class="t">${num}. ${esc(p.texto)}</div>
+      <div class="par"><button class="opt${sm} ${a.resp===p.op1?'okon':''}" onclick="A.resp('${p.q}',1)">${esc(p.op1)}</button>
+      <button class="opt${sm} ${a.resp===p.op2?'badon':''}" onclick="A.resp('${p.q}',2)">${esc(p.op2)}</button></div>
+      ${a.resp===p.op2?`<div class="req">Explique o que aconteceu e o que foi feito *</div><textarea class="obs" oninput="A.obs('${p.q}',this.value)" placeholder="Obrigatório: o que aconteceu? O que foi feito?">${esc(a.obs||'')}</textarea>${botaoFoto(e.cod, p.q, curto(p.texto), 'Adicionar foto (opcional)')}${miniFotos(e.cod, p.q)}`:''}</div>`;
+  }).join('');
+  return cab('Checklist · '+esc(cfg.tipoNome[e.tipo]||e.tipo)) +
+   `<div class="banner" style="background:${e.cor}"><div class="e">Etapa ${c.idx+1} de ${n} · ${esc(cfg.tipoNome[e.tipo]||'')}</div><div class="n">${esc(e.nome)}</div>
+    <div class="s">Turno (${c.de}) → (${c.para}) · ${esc(c.op)}</div></div>
+   <div class="dica">Responda na ordem: cada pergunta libera a próxima. Resposta com problema precisa de explicação.</div>` + itens +
+   `<button class="btn pri" onclick="A.prox()">Próximo: ${esc(prox?prox.nome:'Quadro do turno')}</button>
+    <button class="btn" onclick="A.volta()">Voltar</button>` + rod;
+}
+
+function telaQuadro(){
+  const c=S.cur;
+  const at = (k) => cfg.atividades.map((a,i)=>`<button class="at ${c[k].includes(a)?k:''}" onclick="A.ativ('${k}',${i})">${esc(a)}</button>`).join('');
+  return cab('Quadro do turno · o que fica para o próximo turno') +
+  `<h2 class="tit-prox">Para o próximo turno (toque para marcar)</h2><div class="duas">${at('prox')}</div>
+   <textarea oninput="S.cur.proxOutros=this.value" placeholder="Outras pendências (uma por linha)">${esc(c.proxOutros)}</textarea>
+   <h2 class="tit-feito">Feito neste turno (toque para marcar)</h2><div class="duas">${at('feito')}</div>
+   <textarea oninput="S.cur.feitoOutros=this.value" placeholder="Outras atividades feitas (uma por linha)">${esc(c.feitoOutros)}</textarea>
+   <h2>Caixas</h2><div class="cx" style="padding:4px 10px">${cfg.caixas.map((x,i)=>`<div class="step"><span>${esc(x)}</span><button onclick="A.cx(${i},-1)" aria-label="menos">−</button><b>${c.cx[x]||0}</b><button class="mais" onclick="A.cx(${i},1)" aria-label="mais">+</button></div>`).join('')}</div>
+   <h2>Observações e ocorrências (uma por linha)</h2>
+   <textarea style="min-height:110px" oninput="S.cur.obsTurno=this.value" placeholder="Ex.: KC 03 do secundário com a placa danificada">${esc(c.obsTurno)}</textarea>
+   <h2>Fotos (até ${MAX_FOTOS}, vão no fim do PDF)</h2>
+   <div class="dica">Fotos não ficam guardadas: servem só para o PDF desta passagem.</div>
+   ${botaoFoto('geral', '', '', 'Adicionar foto geral')}
+   ${S.fotos.length ? `<div class="fotos-q">${S.fotos.map((f,i)=>`<div class="fq"><img src="${f.src}" alt=""><div class="fq-n">Foto ${i+1} · ${esc(f.eq==='geral'?'Geral':(cfg.equip.find(x=>x.cod===f.eq)||{}).nome||'')}</div>
+      <input type="text" value="${esc(f.leg)}" placeholder="Legenda da foto" oninput="A.fotoLeg(${f.id},this.value)"><button class="btn peq perigo" onclick="A.fotoDel(${f.id})">Remover foto</button></div>`).join('')}</div>` : ''}
+   <button class="btn pri" onclick="A.revisar()">Ver relatório da passagem</button>
+   <button class="btn" onclick="A.volta()">Voltar</button>` + rod;
+}
+
+function telaRel(){
+  const r=S.rec, ver=S.modo==='ver';
+  const larg = Math.min((($('app')||{}).clientWidth||760), 760) - 24, k = Math.min(1, larg / PG_W);
+  const pags = pdfPaginas(r, fotosDoRel()).map(p=>`<div class="pv-pg" style="width:${PG_W*k}px;height:${PG_H*k}px"><div class="pdfdoc" style="transform:scale(${k});transform-origin:0 0">${p}</div></div>`).join('');
+  const podeComp = S.pdfFile && navigator.canShare && (()=>{ try { return navigator.canShare({files:[S.pdfFile]}); } catch(e){ return false; } })();
+  const pdfBtns = S.pdfFile
+    ? `<div class="salvo"><b>PDF pronto ✓</b><small>${esc(S.pdfFile.name)} · ${Math.max(1, Math.round(S.pdfFile.size/1024))} KB</small></div>
+       ${podeComp?`<button class="btn zap" onclick="A.compartilhar()">Compartilhar PDF no WhatsApp</button>`:''}
+       <button class="btn ${podeComp?'':'zap'}" onclick="A.baixar()">Baixar PDF</button>`
+    : `<button class="btn pri" onclick="A.gerarPdf()" ${S.gerando?'disabled':''}>${S.gerando?'Gerando o PDF…':'📄 Gerar PDF'+(fotosDoRel().length?' com '+fotosDoRel().length+(fotosDoRel().length>1?' fotos':' foto'):'')}</button>`;
+  const acoes = pdfBtns + `<div class="linha"><button class="btn" onclick="A.zap()">Enviar resumo em texto</button><button class="btn" onclick="A.copiar()">Copiar texto</button></div>` +
+    (ver ? `<div class="dica">As fotos não ficam guardadas: o PDF do histórico sai sem fotos.</div>` : '');
+  let topo='';
+  if(!ver && !S.salvo) topo = `<button class="btn pri" onclick="A.salvar()">Salvar a passagem</button><div class="mini">Confira as páginas abaixo. Depois de salvar, aparece o botão do PDF.</div>`;
+  else if(!ver) topo = `<div class="salvo"><b>Passagem salva ✓</b><small>Gere o PDF e mande no grupo do WhatsApp.</small></div>` + acoes;
+  else topo = acoes;
+  const voltar = ver ? `<button class="btn" onclick="S.tela=S.volta;S.pdfFile=null;R(true)">Voltar</button>`
+     : S.salvo ? `<button class="btn" onclick="A.inicio()">Voltar ao início</button>`
+     : `<button class="btn" onclick="S.tela=(S.rec.status==='nao_feita'?'inicio':'quadro');R(true)">Voltar e corrigir</button>`;
+  return cab('Relatório da passagem de turno') + topo + `<div class="pv-titulo">Páginas do PDF</div><div id="rel" class="pv-pags inline">${pags}</div>` + voltar + rod;
+}
+
+function telaAdm(){
+  const lim = Date.now()-30*864e5, ult30 = db.filter(p=>new Date(p.data_hora).getTime()>=lim);
+  const top={};
+  ult30.forEach(p=>(p.itens||[]).filter(i=>i.ruim).forEach(i=>{const k=i.nome+'\u0001'+i.texto; top[k]=(top[k]||0)+1;}));
+  const topL=Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  return cab('Painel ADM · histórico e problemas mais frequentes') +
+  `<button class="btn" onclick="A.inicio()">← Voltar para o início</button>
+   <div class="tiles"><div class="tile"><div class="k">Passagens (30 dias)</div><div class="v">${ult30.length}</div></div>
+   <div class="tile"><div class="k">Com problema</div><div class="v" style="color:var(--bad)">${ult30.filter(p=>p.problemas>0).length}</div></div>
+   <div class="tile"><div class="k">Não realizadas</div><div class="v" style="color:var(--warn)">${ult30.filter(p=>p.status==='nao_feita').length}</div></div></div>
+   <h2>Problemas mais frequentes · últimos 30 dias</h2>` +
+   (topL.length? `<div style="overflow-x:auto"><table class="top"><tr><th>Equipamento · item</th><th>Vezes</th></tr>${topL.map(([k,v])=>{const [n,t]=k.split('\u0001');return `<tr><td><b>${esc(n)}</b> · ${esc(t)}</td><td>${v}</td></tr>`}).join('')}</table></div>` : `<div class="mini">Nenhum problema registrado nos últimos 30 dias.</div>`) +
+   `<h2>Passagens registradas</h2><div class="cx" style="padding:0 10px">` +
+   (db.length? db.slice(0,40).map((p,i)=>`<div class="pass"><div><b>${fmt(p.data_hora)} · (${p.de}) → (${p.para})</b>
+      <small style="color:${p.status==='nao_feita'?'var(--warn)':p.problemas>0?'var(--bad)':'var(--ok)'}">${esc(p.operador)} · ${p.status==='nao_feita'?'não realizada: '+esc(p.motivo):p.problemas>0?p.problemas+' problema(s)':'checklist OK'}</small></div>
+      <button class="btn peq" onclick="A.ver(${i},'adm')">Ver</button></div>`).join('') : `<div class="mini" style="padding:12px 0">Nenhuma passagem salva neste navegador ainda.</div>`) +
+   `</div><h2>Equipamentos em uso no checklist</h2><div class="cx">${cfg.equip.map((e,i)=>`<div class="tg"><span>${esc(e.nome)}</span><button class="sw ${e.ativo?'on':''}" onclick="A.tgl(${i})" aria-label="Em uso"></button><em>${e.ativo?'Em uso':'Fora'}</em></div>`).join('')}</div>
+   <div class="nota">No protótipo, ligar ou desligar já vale na hora. No Power Apps é preciso tocar em "Salvar equipamentos".</div>
+   <h2>Testar e editar o app</h2>
+   <button class="btn pri" onclick="A.editor()">Editar perguntas, equipamentos e listas</button>
+   <div class="linha"><button class="btn" onclick="A.exemplos()">Gerar passagens de exemplo</button><button class="btn" onclick="A.csv()">Baixar histórico (CSV)</button></div>
+   <button class="btn perigo" onclick="A.confirma('apagar','Toque de novo para apagar o histórico deste navegador',A.apagar)">${S.conf.apagar?'Toque de novo para apagar o histórico deste navegador':'Apagar histórico deste navegador'}</button>
+   <button class="btn" onclick="S.admin=false;A.inicio()">Sair do Painel ADM</button>` + rod;
+}
+
+function telaEditor(){
+  const d=S.draft, tabs=[['perguntas','Perguntas'],['equip','Equipamentos'],['listas','Atividades e caixas'],['pessoas','Operadores e acesso']];
+  let corpo='';
+  if(S.edTab==='perguntas'){
+    const usos = t => d.equip.filter(e=>e.tipo===t).map(e=>e.nome).join(', ') || 'nenhum equipamento usa';
+    const P=d.perg[S.edTipo]; let num=0;
+    const rotTipo = t => { const u=d.equip.filter(e=>e.tipo===t); return u.length===1 ? u[0].nome : (t==='filtro' ? 'Filtros de mangas' : (d.tipoNome[t]||t)); };
+    corpo = `<div class="ed-tabs">${Object.keys(d.perg).map(t=>`<button class="${S.edTipo===t?'on':''}" onclick="S.edTipo='${t}';R()">${esc(rotTipo(t))}</button>`).join('')}</div>
+      <div class="mini">Usado por: ${esc(usos(S.edTipo))}</div>` +
+      P.map((p,i)=>{
+        if(p.kind==='tx'){
+          const opsDep = P.filter(x=>x.kind==='op').map(x=>`<option value="${x.q}" ${x.q===p.depq?'selected':''}>${P.filter(y=>y.kind!=='tx').indexOf(x)+1}. ${esc(x.texto.slice(0,50))}${x.texto.length>50?'…':''}</option>`).join('');
+          return `<div class="ed-q tx"><div class="topo"><b>↳</b><span class="mini">Pergunta obrigatória que aparece quando a resposta for ruim em:</span><select onchange="A.edDep(${i},this.value)">${opsDep}</select>
+            <button class="ic" onclick="A.edMov(${i},-1)" title="Subir">↑</button><button class="ic" onclick="A.edMov(${i},1)" title="Descer">↓</button><button class="ic" onclick="A.edDel(${i})" title="Apagar">✕</button></div>
+            <textarea oninput="S.draft.perg[S.edTipo][${i}].texto=this.value">${esc(p.texto)}</textarea></div>`;
+        }
+        num++;
+        const tipoR = p.kind==='num'?'num':p.op1==='Sim'&&p.op2==='Não'?'sn':p.op1==='Dentro do parâmetro'?'dp':'pers';
+        return `<div class="ed-q"><div class="topo"><b>${num}.</b><select onchange="A.edOpc(${i},this.value)">
+            <option value="sn" ${tipoR==='sn'?'selected':''}>Sim / Não</option><option value="dp" ${tipoR==='dp'?'selected':''}>Dentro / Fora do parâmetro</option><option value="pers" ${tipoR==='pers'?'selected':''}>Outras opções…</option><option value="num" ${tipoR==='num'?'selected':''}>Número (medição)</option></select>
+            <button class="ic" onclick="A.edMov(${i},-1)" title="Subir">↑</button><button class="ic" onclick="A.edMov(${i},1)" title="Descer">↓</button>${tipoR==='num'?'':`<button class="ic" onclick="A.edCond(${i})" title="Adicionar pergunta condicional">↳</button>`}<button class="ic" onclick="A.edDel(${i})" title="Apagar">✕</button></div>
+          <textarea oninput="S.draft.perg[S.edTipo][${i}].texto=this.value">${esc(p.texto)}</textarea>
+          ${tipoR==='num'?`<div class="linha"><input type="text" value="${esc(p.un||'')}" oninput="S.draft.perg[S.edTipo][${i}].un=this.value" placeholder="Unidade (ex.: bar, mmca, °C)"></div>`:''}
+          ${tipoR==='pers'?`<div class="linha"><input type="text" value="${esc(p.op1)}" oninput="S.draft.perg[S.edTipo][${i}].op1=this.value" placeholder="Resposta boa (verde)"><input type="text" value="${esc(p.op2)}" oninput="S.draft.perg[S.edTipo][${i}].op2=this.value" placeholder="Resposta ruim (vermelha)"></div>`:''}</div>`;
+      }).join('') +
+      `<button class="btn" onclick="A.edAdd()">+ Adicionar pergunta</button>
+       <div class="nota">A primeira opção é a resposta boa (fica verde, entra como OK). A segunda é a ruim: pede explicação obrigatória e conta como problema. "Número (medição)" pede um valor com unidade, como a pressão da linha de ar. Use ↳ para criar uma pergunta obrigatória que só aparece quando a resposta for ruim.</div>`;
+  } else if(S.edTab==='equip'){
+    corpo = d.equip.map((e,i)=>`<div class="ed-eq"><input type="text" value="${esc(e.nome)}" oninput="S.draft.equip[${i}].nome=this.value">
+      <select onchange="S.draft.equip[${i}].tipo=this.value">${Object.keys(d.perg).map(t=>`<option value="${t}" ${e.tipo===t?'selected':''}>${esc(d.tipoNome[t]||t)}</option>`).join('')}</select>
+      <input type="color" value="${e.cor}" oninput="S.draft.equip[${i}].cor=this.value" title="Cor">
+      <span style="display:flex;gap:4px"><button class="ic" onclick="A.eqMov(${i},-1)">↑</button><button class="ic" onclick="A.eqMov(${i},1)">↓</button><button class="ic" onclick="A.eqDel(${i})">✕</button></span>
+      <label class="mini" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${e.ativo?'checked':''} onchange="S.draft.equip[${i}].ativo=this.checked"> em uso</label></div>`).join('') +
+      `<button class="btn" onclick="A.eqAdd()">+ Adicionar equipamento</button>
+       <div class="nota">O tipo define qual lista de perguntas o equipamento usa. Secundário, escória e primários compartilham a lista dos filtros de mangas; o refino tem a lista própria.</div>`;
+  } else if(S.edTab==='listas'){
+    corpo = `<div class="rot">Atividades do quadro do turno (uma por linha)</div><textarea style="min-height:260px" oninput="S.draft.atividades=linhas(this.value)">${esc(d.atividades.join('\n'))}</textarea>
+      <div class="rot">Contadores de caixas (uma por linha)</div><textarea style="min-height:180px" oninput="S.draft.caixas=linhas(this.value)">${esc(d.caixas.join('\n'))}</textarea>`;
+  } else {
+    corpo = `<div class="rot">Operadores (um por linha)</div><textarea style="min-height:140px" oninput="S.draft.operadores=linhas(this.value)">${esc(d.operadores.join('\n'))}</textarea>
+      <div class="rot">Turnos (separados por vírgula)</div><input type="text" value="${esc(d.turnos.join(', '))}" oninput="S.draft.turnos=this.value.split(',').map(x=>x.trim()).filter(Boolean)">
+      <div class="rot">Usuário e senha do Painel ADM</div><div class="linha"><input type="text" value="${esc(d.adm.usuario)}" oninput="S.draft.adm.usuario=this.value"><input type="text" value="${esc(d.adm.senha)}" oninput="S.draft.adm.senha=this.value"></div>`;
+  }
+  return cab('Editor do protótipo · perguntas, equipamentos e listas') +
+    `<div class="nota">As mudanças valem só neste navegador. Quando estiver do jeito que você quer, toque em <b>Copiar configuração</b> e mande o texto para atualizar o app do Power Apps.</div>
+     <div class="ed-tabs">${tabs.map(([k,n])=>`<button class="${S.edTab===k?'on':''}" onclick="S.edTab='${k}';R()">${n}</button>`).join('')}</div>` + corpo +
+    `<div class="linha" style="margin-top:6px"><button class="btn pri" onclick="A.edSalvar()">Salvar e testar</button><button class="btn" onclick="A.edCopiar()">Copiar configuração</button><button class="btn" onclick="A.edBaixar()">Baixar configuração</button></div>
+     <button class="btn perigo" onclick="A.confirma('padrao','',A.edPadrao)">${S.conf.padrao?'Toque de novo para voltar ao padrão':'Voltar tudo ao padrão do app'}</button>
+     <button class="btn" onclick="S.tela='adm';R(true)">Voltar sem salvar</button>` + rod;
+}
+
+/* ---------------------------------------------------------------- relatório */
+function montaRec(){
+  const c=S.cur, itens=[];
+  c.etapas.forEach(e=>{ (cfg.perg[e.tipo]||[]).forEach(p=>{ const a=c.resp[e.cod][p.q]; if(!a||!String(a.resp||'').trim()) return;
+     if(p.kind==='tx'){ const dep=c.resp[e.cod][p.depq]; if(!dep||dep.resp!==p.depv) return; }
+     itens.push({eq:e.cod,nome:e.nome,q:p.q,kind:p.kind,texto:p.texto,curto:curto(p.texto),resp:String(a.resp).trim(),un:p.un||'',obs:a.obs||'',ruim:p.kind==='op'&&a.resp===p.op2}); }); });
+  return { id:Date.now().toString(36), data_hora:c.quando, operador:c.op, de:c.de, para:c.para, status:'feita', motivo:'',
+    eqs:c.etapas.map(e=>({cod:e.cod,nome:e.nome,cor:e.cor})), naoFeitos:c.naoFeitos||[], itens, problemas:itens.filter(i=>i.ruim).length,
+    prox:[...c.prox, ...linhas(c.proxOutros)], feito:[...c.feito, ...linhas(c.feitoOutros)],
+    caixas:cfg.caixas.filter(x=>c.cx[x]>0).map(x=>({nome:x,n:c.cx[x]})), obs:linhas(c.obsTurno) };
+}
+function relHTML(r){
+  const vazio = `<span style="color:var(--muted)">—</span>`;
+  const sec = (t,corpo,cor) => `<div class="sec"><div style="background:${cor||'var(--navy)'}">${t}</div><div>${corpo}</div></div>`;
+  const lista = L => L.length ? L.map(x=>`<div>• ${esc(x)}</div>`).join('') : vazio;
+  const cab = `<div class="h">PASSAGEM DE TURNO (${r.de}) PARA O (${r.para})</div><div class="m">${fmt(r.data_hora)} · ${esc(r.operador)} · Filtros e CAC · UND14</div>`;
+  if(r.status==='nao_feita') return `<div class="rel">${cab}<div class="st" style="background:var(--warn-bg);color:var(--warn)">Não foi possível fazer a passagem neste turno.</div><div style="margin-top:8px"><b>Motivo:</b> ${esc(r.motivo)}</div><div class="gerado">Gerado pelo app Passagem de Turno · Desenvolvido por Hamilton Lira</div></div>`;
+  const eqs = r.eqs.map(e=>{ const pr=r.itens.filter(i=>i.eq===e.cod&&i.ruim), tx=r.itens.filter(i=>i.eq===e.cod&&i.kind!=='op');
+    return `<div class="eq" style="border-color:${e.cor}"><b>${esc(e.nome)}</b> ${pr.length?`<span style="color:var(--bad);font-weight:700">${pr.length} problema${pr.length>1?'s':''}</span>`:`<span style="color:var(--ok);font-weight:700">✓ OK</span>`}
+      ${pr.map(i=>`<div style="color:var(--bad)">✗ ${esc(i.texto)}${i.obs?` <span style="color:var(--ink)">— ${esc(i.obs)}</span>`:''}</div>`).join('')}
+      ${tx.map(i=>`<div>• ${esc(i.texto)} <b>${esc(i.resp)}${i.un?' '+esc(i.un):''}</b></div>`).join('')}</div>`; }).join('') +
+    ((r.naoFeitos||[]).length?`<div style="margin-top:10px;padding:6px 10px;background:var(--warn-bg);color:var(--warn);border-radius:3px"><b>Não feitos neste turno:</b> ${esc(r.naoFeitos.join(', '))}</div>`:'');
+  return `<div class="rel">${cab}<div class="st" style="${r.problemas?'background:var(--bad-bg);color:var(--bad)':'background:var(--ok-bg);color:var(--ok)'}">${r.problemas?r.problemas+' ponto(s) fora do normal':'✓ Checklist sem problemas'}</div>` +
+    sec('Checklist dos equipamentos', eqs) + sec('Para o próximo turno', lista(r.prox), 'var(--prox)') + sec('Feito neste turno', lista(r.feito), 'var(--ok)') +
+    sec('Caixas', r.caixas.length?r.caixas.map(c=>`<div>• ${esc(c.nome)}: <b>${c.n}</b></div>`).join(''):vazio, '#3B4250') +
+    sec('Observações', lista(r.obs), 'var(--warn)') + `<div class="gerado">Gerado pelo app Passagem de Turno · Desenvolvido por Hamilton Lira</div></div>`;
+}
+function zapTxt(r){   // mesmo texto que o app do Power Apps monta
+  const NL='\n', lst=L=>L.map(x=>'• '+x+NL).join('');
+  const s=`*PASSAGEM DE TURNO (${r.de}) → (${r.para})*`+NL+`${fmt(r.data_hora)} · ${r.operador}`;
+  if(r.status==='nao_feita') return s+NL+NL+'Não foi possível fazer a passagem. Motivo: '+r.motivo;
+  const probs=r.eqs.map(e=>r.itens.filter(i=>i.eq===e.cod&&i.ruim).map(i=>`• ${e.nome}: ${i.texto}${String(i.obs||'').trim()?' — '+i.obs:''}`+NL).join('')).join('');
+  const med=r.eqs.map(e=>r.itens.filter(i=>i.eq===e.cod&&i.kind!=='op').map(i=>`• ${e.nome}: ${i.texto} ${i.resp}${i.un?' '+i.un:''}`+NL).join('')).join('');
+  return s+NL+['', '*Checklist:* '+(probs?NL+probs:'tudo OK ✓')+(med?NL+med:'')+((r.naoFeitos||[]).length?NL+'*Não feitos neste turno:* '+r.naoFeitos.join(', '):''),
+    '*Para o próximo turno:*'+NL+lst(r.prox), '*Feito neste turno:*'+NL+lst(r.feito),
+    '*Caixas:* '+(r.caixas.length?r.caixas.map(c=>c.nome+' '+c.n).join('; '):'—'),
+    '*Observações:* '+(r.obs.length?NL+'• '+r.obs.join(NL+'• '):'—')].join(NL);
+}
+
+/* ---------------------------------------------------------------- textos curtos (relatório) */
+const CURTO = {
+  'As pressões diferenciais das mangas estão abaixo de 150 mmca e as dos HEPAs abaixo de 60 mmca?': 'ΔP mangas < 150 e HEPAs < 60 mmca',
+  'A pressão de entrada e saída do filtro está dentro do normal?': 'Pressão de entrada e saída',
+  'O sistema de pulso está funcionando corretamente, com tempo e frequência ajustados (tempo 150 ms e intervalo 5 min)?': 'Pulso (150 ms / 5 min)',
+  'Qual a pressão da linha de ar comprimido?': 'Pressão da linha de ar', 'O filtro está operando sem entrada de ar falso?': 'Sem ar falso',
+  'Os martelos pneumáticos estão fixados corretamente e sem trincas na base?': 'Martelos fixos, sem trinca',
+  'Os moto vibradores estão fixados corretamente e sem trincas na base?': 'Moto vibradores fixos, sem trinca',
+  'Todas as moegas estão com o nível de pó abaixo do sensor de nível?': 'Moegas abaixo do sensor',
+  'O exaustor está sem ruído e com a vibração dos mancais dentro do aceitável?': 'Exaustor sem ruído/vibração',
+  'A válvula rotativa do defagulhador está funcionando corretamente?': 'Rotativa do defagulhador', 'Os compartimentos do filtro estão sem vazamentos de pó?': 'Sem vazamento de pó',
+  'A IHM do filtro está sem alarmes?': 'IHM sem alarme', 'A área do filtro está limpa, sem acúmulo de pó?': 'Área limpa',
+  'A pressão negativa no galpão está abaixo de -0,18 mmca em todas as áreas?': 'Pressão negativa < -0,18 mmca',
+  'As pressões dos sistemas estão dentro do padrão?': 'Pressões no padrão', 'Todos os sistemas estão operando em modo automático?': 'Tudo em automático',
+  'As válvulas rotativas estão funcionando corretamente?': 'Válvulas rotativas', 'O pó está sendo enviado para apenas um silo?': 'Pó para um só silo',
+  'As mangueiras estão sem deformidades?': 'Mangueiras sem deformidade', 'O sistema 900 está com tempo de transporte dentro do normal?': 'Tempo do sistema 900',
+  'As linhas e conexões estão sem sinais de vazamento de pó?': 'Linhas sem vazamento', 'A IHM está sem alarmes ativos?': 'IHM sem alarme',
+  'O sistema está funcionando sem entupimentos?': 'Sem entupimento', 'O sistema de purga dos compressores está funcionando corretamente?': 'Purga dos compressores',
+  'Qual compressor não está com a purga funcionando?': 'Compressor', 'A pressão de ar comprimido ficou acima de 6 bar durante todo o turno?': 'Ar acima de 6 bar no turno',
+  'As pressões e a vazão do ar foram registradas durante o turno?': 'Pressão e vazão registradas', 'O nível de óleo dos compressores está dentro do padrão?': 'Nível de óleo',
+  'Há um compressor em operação e outro em modo automático (auto restart)?': '1 operando + 1 em auto restart',
+  'A quantidade de partidas dos compressores foi colocada no grupo?': 'Partidas no grupo', 'As horas de funcionamento dos compressores foram colocadas no grupo?': 'Horas no grupo',
+  'O ΔP dos filtros dos secadores está dentro do permitido?': 'ΔP dos secadores', 'Os compressores estão sem ruídos anormais?': 'Sem ruído anormal'
+};
+function curto(t){ if(CURTO[t]) return CURTO[t]; if(/motivo|por que|porque/i.test(t)) return 'Motivo'; return t; }
+
+/* ---------------------------------------------------------------- fotos (temporárias: só nesta passagem e dentro do PDF) */
+const MAX_FOTOS = 10;
+let fotoAlvo = null;
+function reduzFoto(file){
+  return new Promise((ok, erro) => {
+    const rd = new FileReader();
+    rd.onerror = erro;
+    rd.onload = () => { const im = new Image(); im.onerror = erro; im.onload = () => {
+      const m = 1400, k = Math.min(1, m / Math.max(im.width, im.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.8)); }; im.src = rd.result; };
+    rd.readAsDataURL(file);
+  });
+}
+function numFoto(id){ return S.fotos.findIndex(f=>f.id===id) + 1; }
+function miniFotos(eq, q){
+  const L = S.fotos.filter(f=>f.eq===eq && f.q===q);
+  return L.length ? `<div class="mini-fotos">${L.map(f=>`<span><img src="${f.src}" alt=""><button onclick="A.fotoDel(${f.id})" aria-label="Remover foto">✕</button><i>Foto ${numFoto(f.id)}</i></span>`).join('')}</div>` : '';
+}
+function botaoFoto(eq, q, leg, texto){
+  return `<button class="btn foto" onclick="A.fotoAdd('${eq}','${q}','${esc(leg).replace(/'/g,'&#39;')}')">📷 ${texto}</button>`;
+}
+
+/* ---------------------------------------------------------------- PDF: páginas A4 (794 x 1123 px) desenhadas em HTML e "fotografadas" */
+const PG_W = 794, PG_H = 1123;
+function pdfPaginas(r, fotos){
+  const e2 = esc, LOGO_IMG = `<img src="${LOGO}" alt="Moura">`;
+  const quando = new Date(r.data_hora), data = fmt(quando).slice(0,10), hora = fmt(quando).slice(11);
+  const chip = (cor, nome) => `<span class="pchip" style="background:${cor}">${e2(nome)}</span>`;
+  const corEq = cod => (cfg.equip.find(x=>x.cod===cod)||{}).cor || '#233176';
+  const tipoEq = cod => (cfg.equip.find(x=>x.cod===cod)||{}).tipo;
+  const pagina = (n, tot, corpo) => `<section class="pdfpg">${corpo}<div class="pdfrod"><span>Passagem de turno ${r.de} → ${r.para} · ${data} ${hora} · ${e2(r.operador)}</span><span>página ${n} de ${tot}</span></div></section>`;
+  const topo = `<header class="topo">${LOGO_IMG}<div><b>Relatório de passagem de turno</b><span>Filtros e CAC · UND14</span></div></header>`;
+  const hero = `<div class="hero"><div class="turnos"><div class="t"><small>sai</small>${r.de}</div><div class="seta">→</div><div class="t entra"><small>entra</small>${r.para}</div></div>
+    <div class="quem"><div class="k">Passagem do turno ${r.de} para o turno ${r.para}</div><div class="v">Passada por <b>${e2(r.operador)}</b> em <b>${data} às ${hora}</b></div>
+    <div class="v2">${r.status==='nao_feita' ? 'A passagem não foi feita neste turno.' : 'Leia antes de assumir o turno. Detalhes a partir da página 2.'}</div></div></div>`;
+  if(r.status==='nao_feita'){
+    return [pagina(1, 1, topo + hero + `<h2 class="h-alerta">Passagem não realizada</h2><div class="naofeito"><b>Motivo:</b> ${e2(r.motivo)}</div>`)];
+  }
+  const fotosDe = (eq, q) => (fotos||[]).map((f,i)=>({f, n:i+1})).filter(x=>x.f.eq===eq && x.f.q===q).map(x=>'Foto '+x.n).join(', ');
+  const probs = r.itens.filter(i=>i.ruim);
+  const eqOk = r.eqs.filter(e=>!probs.some(p=>p.eq===e.cod)).length;
+  const pend = r.prox;
+  const atencao = probs.length ? probs.map(p=>{
+      const cd = r.itens.find(i=>i.eq===p.eq && i.kind==='tx' && (cfg.perg[tipoEq(p.eq)]||[]).some(x=>x.q===i.q && x.depq===p.q));
+      const ft = fotosDe(p.eq, p.q);
+      return `<div class="item"><div class="itop">${chip(corEq(p.eq), p.nome)}<span class="resp-ruim">${e2(p.resp)}</span>${ft?`<span class="fref">${ft}</span>`:''}</div>
+        <div class="perg">${e2(p.curto||curto(p.texto))}</div>${String(p.obs||'').trim()?`<div class="pobs">“${e2(p.obs.trim())}”</div>`:''}
+        ${cd?`<div class="det"><b>${e2(cd.curto||curto(cd.texto))}:</b> ${e2(cd.resp)}</div>`:''}</div>`; }).join('')
+    : `<div class="tudook">✓ Nenhum problema no checklist</div>`;
+  const med = r.itens.filter(i=>i.kind==='num').map(i=>`<div class="med"><span>${e2(i.nome)} · ${e2(i.curto||curto(i.texto))}</span><b>${e2(i.resp)} ${e2(i.un||'')}</b></div>`).join('');
+  const nf = (r.naoFeitos||[]).length ? `<div class="naofeito">${r.naoFeitos.map(n=>chip((cfg.equip.find(x=>x.nome===n)||{}).cor||'#3B4250', n)).join(' ')}<p>Não deu para fazer neste turno. Fica para o turno ${r.para}.</p></div>` : `<div class="vazio">—</div>`;
+  const p1 = topo + hero +
+    `<div class="placar"><div class="pl ruim"><b>${probs.length}</b><span>pontos de atenção</span></div>
+      <div class="pl ok"><b>${eqOk}<small>/${r.eqs.length}</small></b><span>equipamentos sem problema</span></div>
+      <div class="pl alerta"><b>${(r.naoFeitos||[]).length}</b><span>não feito no turno</span></div>
+      <div class="pl neutro"><b>${pend.length}</b><span>pendências para o turno ${r.para}</span></div></div>
+    <h2 class="h-ruim">Atenção para o turno ${r.para}</h2><div class="lista-atencao">${atencao}</div>
+    <div class="duas"><div><h2 class="h-pend">Pendências para o turno ${r.para}</h2>${pend.length?`<ul class="pend">${pend.map(p=>`<li><span class="box"></span>${e2(p)}</li>`).join('')}</ul>`:'<div class="vazio">—</div>'}</div>
+      <div><h2 class="h-alerta">Não feito neste turno</h2>${nf}${med?`<h2 class="h-neutro">Medições</h2>${med}`:''}</div></div>
+    <h2 class="h-neutro">Observações do turno</h2>${r.obs.length?`<ul class="obsl">${r.obs.map(o=>`<li>${e2(o)}</li>`).join('')}</ul>`:'<div class="vazio">—</div>'}`;
+
+  // página 2: quadro item x filtro + transporte pneumático e CAC
+  const feitoEq = cod => r.eqs.some(e=>e.cod===cod);
+  const nfEq = cod => (r.naoFeitos||[]).includes((cfg.equip.find(x=>x.cod===cod)||{}).nome);
+  const resp = (cod, q) => r.itens.find(i=>i.eq===cod && i.q===q);
+  const filtros = cfg.equip.filter(e=>['refino','filtro','pneg'].includes(e.tipo));
+  const outros = cfg.equip.filter(e=>!['refino','filtro','pneg'].includes(e.tipo));
+  const linhasM = [];
+  filtros.forEach(e=>(cfg.perg[e.tipo]||[]).forEach(x=>{ if(x.kind==='tx') return;
+    const k = /martelos|moto vibradores/i.test(x.texto) ? 'Martelos / moto vibradores fixos, sem trinca' : curto(x.texto);
+    let L = linhasM.find(l=>l.k===k); if(!L){ L = {k, por:{}}; linhasM.push(L); } L.por[e.cod] = x; }));
+  const cel = (e, x) => {
+    if(!feitoEq(e.cod)) return nfEq(e.cod) ? '<td class="nfc">não feito</td>' : '<td class="na">fora</td>';
+    if(!x) return '<td class="na">—</td>';
+    const a = resp(e.cod, x.q); if(!a) return '<td class="na">—</td>';
+    if(x.kind==='num') return `<td class="num">${e2(a.resp)} ${e2(x.un||'')}</td>`;
+    return a.ruim ? '<td class="x">✗</td>' : '<td class="v">✓</td>';
+  };
+  const nomeCurto = n => n.replace(/^Filtro (do |de )?/i,'').replace(/^(.)/, m=>m.toUpperCase());
+  const mat = `<div class="tabwrap"><table class="mat"><tr><th class="it">Filtros de mangas</th>${filtros.map(e=>`<th style="background:${e.cor}">${e2(nomeCurto(e.nome))}</th>`).join('')}</tr>
+    ${linhasM.map((l,n)=>`<tr><td class="it">${n+1}. ${e2(l.k)}</td>${filtros.map(e=>cel(e, l.por[e.cod])).join('')}</tr>`).join('')}</table></div>`;
+  const card = e => {
+    if(!feitoEq(e.cod)) return `<div class="card nf"><div class="ch" style="background:${e.cor}">${e2(e.nome)}<span>${nfEq(e.cod)?'não feito':'fora de uso'}</span></div><div class="vazio2">Checklist não feito neste turno.</div></div>`;
+    let n = 0; const np = probs.filter(p=>p.eq===e.cod).length;
+    const rows = (cfg.perg[e.tipo]||[]).map(x=>{ const a = resp(e.cod, x.q);
+      if(x.kind==='tx') return a ? `<tr class="sub"><td></td><td colspan="2">↳ ${e2(curto(x.texto))}: <b>${e2(a.resp)}</b></td></tr>` : '';
+      n++; if(!a) return `<tr><td>${n}</td><td>${e2(curto(x.texto))}</td><td class="na">—</td></tr>`;
+      if(x.kind==='num') return `<tr><td>${n}</td><td>${e2(curto(x.texto))}</td><td class="num">${e2(a.resp)} ${e2(x.un||'')}</td></tr>`;
+      return `<tr class="${a.ruim?'r':''}"><td>${n}</td><td>${e2(curto(x.texto))}</td><td class="${a.ruim?'x':'v'}">${a.ruim?'✗':'✓'} ${e2(a.resp)}</td></tr>`; }).join('');
+    return `<div class="card"><div class="ch" style="background:${e.cor}">${e2(e.nome)}<span>${np?np+(np>1?' problemas':' problema'):'✓ tudo OK'}</span></div><table>${rows}</table></div>`;
+  };
+  const p2 = `<h1>Checklist completo</h1><p class="sub1">Todas as respostas do turno ${r.de}. ✓ normal · <b style="color:#B00020">✗ fora do normal</b> (explicações na página 1) · — não se aplica.</p>${mat}
+    <div class="duas2">${outros.map(card).join('')}</div>`;
+
+  // página 3 em diante: quadro do turno e, no final, as fotos
+  const quadro = `<h1>Quadro do turno</h1><div class="duas q"><div><h2 class="h-ok">Feito neste turno</h2>${r.feito.length?`<ul class="feito">${r.feito.map(x=>`<li>${e2(x)}</li>`).join('')}</ul>`:'<div class="vazio">—</div>'}</div>
+    <div><h2 class="h-neutro">Caixas</h2>${r.caixas.length?`<table class="pcx">${r.caixas.map(c=>`<tr><td>${e2(c.nome)}</td><td>${c.n}</td></tr>`).join('')}</table>`:'<div class="vazio">—</div>'}</div></div>`;
+  const fig = (f, i) => {
+    const onde = f.eq==='geral' ? chip('#3B4250','Geral') : chip(corEq(f.eq), (cfg.equip.find(x=>x.cod===f.eq)||{}).nome || f.eq);
+    return `<figure><div class="fimg"><img src="${f.src}" alt=""><span class="fn">Foto ${i+1}</span></div><figcaption>${onde}<b>${e2(f.leg||'')}</b><small>${e2(r.operador)} · ${data} ${hora}</small></figcaption></figure>`;
+  };
+  const fs = fotos || [];
+  const blocos = [];
+  const naPag3 = fs.slice(0, 4), resto = fs.slice(4);
+  blocos.push(quadro + (fs.length ? `<h1 class="h1b">Fotos</h1><div class="fotos">${naPag3.map((f,i)=>fig(f,i)).join('')}</div>` : '') +
+              (resto.length ? '' : `<div class="fim">Relatório gerado pelo app Passagem de Turno · Filtros e CAC · UND14 · Desenvolvido por Hamilton Lira</div>`));
+  for(let i=0; i<resto.length; i+=6){
+    const fatia = resto.slice(i, i+6), ultima = i+6 >= resto.length;
+    blocos.push(`<h1>Fotos (continuação)</h1><div class="fotos">${fatia.map((f,j)=>fig(f, 4+i+j)).join('')}</div>` +
+                (ultima ? `<div class="fim">Relatório gerado pelo app Passagem de Turno · Filtros e CAC · UND14 · Desenvolvido por Hamilton Lira</div>` : ''));
+  }
+  const corpos = [p1, p2, ...blocos], tot = corpos.length;
+  return corpos.map((c, i)=>pagina(i+1, tot, c));
+}
+function nomePdf(r){ const d = new Date(r.data_hora); return `Passagem_${r.de}_para_${r.para}_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.pdf`; }
+function fotosDoRel(){ return (S.modo==='ver') ? [] : S.fotos; }
+
+function previa(abrir){
+  const ov = $('previa');
+  if(!abrir){ ov.hidden = true; ov.innerHTML = ''; document.body.style.overflow=''; return; }
+  const pags = pdfPaginas(S.rec, fotosDoRel());
+  const esc2 = Math.min(1, (window.innerWidth - 32) / PG_W);
+  ov.innerHTML = `<div class="pv-bar"><b>Prévia do PDF · ${pags.length} ${pags.length>1?'páginas':'página'}</b><span><button class="btn peq pri" onclick="A.gerarPdf()">📄 Gerar PDF</button><button class="btn peq" onclick="previa(false)">Fechar</button></span></div>
+    <div class="pv-pags">${pags.map(p=>`<div class="pv-pg" style="width:${PG_W*esc2}px;height:${PG_H*esc2}px"><div class="pdfdoc" style="transform:scale(${esc2});transform-origin:0 0">${p}</div></div>`).join('')}</div>`;
+  ov.hidden = false; document.body.style.overflow='hidden';
+}
+
+async function gerarPdfArquivo(){
+  const pags = pdfPaginas(S.rec, fotosDoRel());
+  const caixa = document.createElement('div');
+  caixa.className = 'pdfdoc'; caixa.style.cssText = `position:fixed;left:-20000px;top:0;width:${PG_W}px`;
+  caixa.innerHTML = pags.join(''); document.body.appendChild(caixa);
+  try {
+    await Promise.all([...caixa.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4', compress:true });
+    const secoes = [...caixa.querySelectorAll('.pdfpg')];
+    for(let i=0; i<secoes.length; i++){
+      const cv = await html2canvas(secoes[i], { scale:2, backgroundColor:'#ffffff', useCORS:true, width:PG_W, height:PG_H, windowWidth:PG_W });
+      if(i) doc.addPage();
+      doc.addImage(cv.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, 297);
+    }
+    return new File([doc.output('blob')], nomePdf(S.rec), { type:'application/pdf' });
+  } finally { caixa.remove(); }
+}
+
+function imprimirPaginas(){   // sem internet: mesma página, pelo "Salvar como PDF" do navegador
+  const pags = pdfPaginas(S.rec, fotosDoRel());
+  const area = $('impressao'); area.innerHTML = `<div class="pdfdoc">${pags.join('')}</div>`;
+  document.body.classList.add('imprimindo');
+  setTimeout(()=>{ window.print(); setTimeout(()=>{ document.body.classList.remove('imprimindo'); area.innerHTML=''; }, 500); }, 300);
+}
+
+
+/* ---------------------------------------------------------------- ações */
+function novaPassagem(){
+  const etapas = cfg.equip.filter(e=>e.ativo&&!(S.ini.fora||[]).includes(e.cod)).map(e=>({...e})), resp={};
+  etapas.forEach(e=>resp[e.cod]={});
+  const naoFeitos = cfg.equip.filter(e=>e.ativo&&(S.ini.fora||[]).includes(e.cod)).map(e=>e.nome);
+  return { op:S.ini.op, de:S.ini.de, para:S.ini.para, quando:new Date().toISOString(), etapas, naoFeitos, idx:0, resp, prox:[], feito:[], proxOutros:'', feitoOutros:'', cx:{}, obsTurno:'', faltaVer:false };
+}
+const A = {
+  turno(k,t){ S.ini[k]=t; R(); },
+  adm(){ if(S.admin){ S.tela='adm'; R(true); } else { S.login=!S.login; R(); if(S.login) setTimeout(()=>$('lgU')&&$('lgU').focus(),30); } },
+  entrar(){ if($('lgU').value.trim().toLowerCase()===cfg.adm.usuario.toLowerCase() && $('lgS').value===cfg.adm.senha){ S.admin=true; S.login=false; S.tela='adm'; R(true); } else avisa('Usuário ou senha incorretos.','error'); },
+  valida(){ if(!S.ini.op){ avisa('Escolha quem está fazendo a passagem.','warn'); return false; }
+    if(!S.ini.de||!S.ini.para){ avisa('Escolha o turno que está saindo e o turno que vai entrar.','warn'); return false; }
+    if(S.ini.de===S.ini.para){ avisa('O turno que sai e o que entra precisam ser diferentes.','warn'); return false; } return true; },
+  comecar(){ if(!A.valida()) return; if(!cfg.equip.some(e=>e.ativo&&!S.ini.fora.includes(e.cod))){ avisa('Marque pelo menos um equipamento feito neste turno.','warn'); return; }
+    S.cur=novaPassagem(); S.fotos=[]; S.pdfFile=null; S.salvo=false; S.modo='novo'; S.tela='eq'; R(true); },
+  naoFez(){ if(!S.ini.op||!S.ini.de||!S.ini.para){ avisa('Escolha seu nome e os turnos antes de registrar.','warn'); return; } const m=($('motivo').value||'').trim(); if(!m){ avisa('Escreva o motivo.','warn'); return; }
+    const r={ id:Date.now().toString(36), data_hora:new Date().toISOString(), operador:S.ini.op, de:S.ini.de, para:S.ini.para, status:'nao_feita', motivo:m, eqs:[], itens:[], problemas:0, prox:[], feito:[], caixas:[], pesos:[], obs:[] };
+    db.unshift(r); A.grava(); S.rec=r; S.salvo=true; S.modo='novo'; S.naoFez=false; S.tela='rel'; R(true); avisa('Registrado.','success'); },
+  resp(q,k){ const c=S.cur,e=c.etapas[c.idx],p=cfg.perg[e.tipo].find(x=>x.q===q),a=c.resp[e.cod][q]||(c.resp[e.cod][q]={}); const v=k===1?p.op1:p.op2; a.resp = v; R(); },
+  obs(q,v){ const c=S.cur; c.resp[c.etapas[c.idx].cod][q].obs=v; aplicaTrava(); },
+  tx(q,v){ const c=S.cur,r=c.resp[c.etapas[c.idx].cod]; (r[q]||(r[q]={})).resp=v; aplicaTrava(); },
+  faltam(){ const c=S.cur,e=c.etapas[c.idx],r=c.resp[e.cod]; return cfg.perg[e.tipo].filter(p=>pendente(p,r)).length; },
+  prox(){ const f=A.faltam(); if(f){ S.cur.faltaVer=true; R(); avisa(`Complete esta tela: ${f} pergunta${f>1?'s':''} sem resposta ou sem explicação.`,'warn'); return; }
+    S.cur.faltaVer=false; S.cur.idx++; S.tela = S.cur.idx>=S.cur.etapas.length?'quadro':'eq'; R(true); },
+  volta(){ const c=S.cur; c.faltaVer=false; if(S.tela==='quadro'){ c.idx=c.etapas.length-1; S.tela='eq'; } else if(c.idx>0) c.idx--; else S.tela='inicio'; R(true); },
+  ativ(k,i){ const a=cfg.atividades[i],L=S.cur[k],j=L.indexOf(a); j>=0?L.splice(j,1):L.push(a); R(); },
+  cx(i,d){ const x=cfg.caixas[i]; S.cur.cx[x]=Math.max(0,(S.cur.cx[x]||0)+d); R(); },
+  revisar(){ S.rec=montaRec(); S.pdfFile=null; S.salvo=false; S.modo='novo'; S.tela='rel'; R(true); },
+  salvar(){ if(S.salvo){ avisa('Esta passagem já foi enviada.','info'); return; } db.unshift(S.rec); if(!A.grava()) avisa('Salvo só nesta aba (o navegador bloqueou o armazenamento).','warn'); else avisa('Passagem salva. Agora envie para o próximo turno.','success'); S.salvo=true; R(); },
+  grava(){ return LS.set('pt_passagens', db); },
+  ver(i,de){ S.rec=db[i]; S.pdfFile=null; S.modo='ver'; S.volta=de; S.tela='rel'; R(true); },
+  zap(){ window.open('https://wa.me/?text='+encodeURIComponent(zapTxt(S.rec)),'_blank'); },
+  copiar(){ const t=zapTxt(S.rec); (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>avisa('Texto copiado. Cole no grupo do WhatsApp.','success'),()=>{ prompt('Copie o texto:',t); }); },
+  fotoAdd(eq, q, leg){
+    if(S.fotos.length >= MAX_FOTOS){ avisa(`Limite de ${MAX_FOTOS} fotos por passagem.`,'warn'); return; }
+    fotoAlvo = {eq, q, leg}; const inp=$('fileFoto'); inp.value=''; inp.click(); },
+  async fotoRecebida(files){
+    if(!fotoAlvo || !files || !files.length) return;
+    let add = 0;
+    for(const f of [...files]){
+      if(S.fotos.length >= MAX_FOTOS){ avisa(`Limite de ${MAX_FOTOS} fotos por passagem.`,'warn'); break; }
+      try { const src = await reduzFoto(f); S.fotos.push({id: Date.now() + Math.random(), eq: fotoAlvo.eq, q: fotoAlvo.q, leg: fotoAlvo.leg, src}); add++; }
+      catch(e){ avisa('Não foi possível ler essa foto.','error'); }
+    }
+    if(add){ S.pdfFile=null; R(); aplicaTrava(); avisa(add>1?`${add} fotos anexadas. Elas vão no PDF.`:'Foto anexada. Ela vai no PDF.','success'); }
+  },
+  fotoDel(id){ S.fotos = S.fotos.filter(f=>f.id!==id); S.pdfFile=null; R(); },
+  fotoLeg(id, v){ const f=S.fotos.find(x=>x.id===id); if(f) f.leg=v; S.pdfFile=null; },
+  async gerarPdf(){
+    if(S.gerando) return;
+    if(!window.jspdf || !window.html2canvas){ avisa('Sem internet para montar o PDF: abrindo o "Salvar como PDF" do navegador.','warn'); previa(false); imprimirPaginas(); return; }
+    S.gerando=true; previa(false); R();
+    try { S.pdfFile = await gerarPdfArquivo(); avisa('PDF pronto. Agora compartilhe no grupo.','success'); }
+    catch(e){ console.error(e); avisa('Não foi possível gerar o PDF: '+(e&&e.message||e),'error'); }
+    S.gerando=false; R();
+  },
+  async compartilhar(){
+    if(!S.pdfFile) return;
+    try { await navigator.share({files:[S.pdfFile], title:S.pdfFile.name.replace('.pdf',''), text:`Passagem de turno ${S.rec.de} → ${S.rec.para}`}); }
+    catch(e){ if(e && e.name!=='AbortError'){ avisa('O celular não deixou compartilhar direto. Baixe o PDF e mande pelo WhatsApp.','warn'); } }
+  },
+  baixar(){
+    if(!S.pdfFile) return;
+    const u=URL.createObjectURL(S.pdfFile), a=document.createElement('a'); a.href=u; a.download=S.pdfFile.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u), 60000); avisa('PDF baixado. Mande o arquivo no grupo do WhatsApp.','success');
+  },
+  inicio(){ S.tela='inicio'; S.cur=null; S.fotos=[]; S.pdfFile=null; S.ini={op:'',de:'',para:'',fora:[]}; R(true); },
+  sel(cod){ const f=S.ini.fora,j=f.indexOf(cod); j>=0?f.splice(j,1):f.push(cod); R(); },
+  tgl(i){ const e=cfg.equip[i]; if(e.ativo && cfg.equip.filter(x=>x.ativo).length===1){ avisa('Deixe pelo menos um equipamento em uso.','warn'); return; } e.ativo=!e.ativo; LS.set('pt_cfg',cfg); R(); },
+  confirma(k,_,fn){ if(S.conf[k]){ S.conf={}; fn(); } else { S.conf={[k]:true}; R(); setTimeout(()=>{ if(S.conf[k]){ S.conf={}; R(); } },4000); } },
+  apagar(){ db=[]; A.grava(); R(); avisa('Histórico apagado.','info'); },
+  exemplos(){
+    const ops=cfg.operadores, ts=cfg.turnos, now=Date.now(), mot=['Parada geral para manutenção','Falta de pessoal no turno'];
+    for(let k=0;k<12;k++){
+      const d=new Date(now-(k*2+1)*12*3600e3), ti=k%ts.length;
+      S.ini={op:ops[k%ops.length],de:ts[ti],para:ts[(ti+1)%ts.length],fora:k%4===2?['prim02']:[]}; const c=novaPassagem(); c.quando=d.toISOString();
+      if(k===5){ db.push({id:'ex'+k,data_hora:c.quando,operador:c.op,de:c.de,para:c.para,status:'nao_feita',motivo:mot[0],eqs:[],itens:[],problemas:0,prox:[],feito:[],caixas:[],pesos:[],obs:[]}); continue; }
+      c.etapas.forEach((e,j)=>cfg.perg[e.tipo].forEach((p,n)=>{ if(p.kind==='op'){ const ruimV=(k%3===0&&j===k%5&&p.texto.includes('moegas'))||(k%4===1&&j===c.etapas.length-1&&n===0); c.resp[e.cod][p.q]={resp:ruimV?p.op2:p.op1,obs:ruimV?'Avisado ao líder do turno':''}; } else if(p.kind==='num') c.resp[e.cod][p.q]={resp:(6+(k%5)/10).toFixed(1).replace('.',',')}; }));
+      c.etapas.forEach(e=>cfg.perg[e.tipo].filter(p=>p.kind==='tx').forEach(p=>{ if((c.resp[e.cod][p.depq]||{}).resp===p.depv) c.resp[e.cod][p.q]={resp:e.tipo==='cac'?'Compressor fixo 02':'Rosca da moega travada'}; }));
+      c.prox=cfg.atividades.filter((_,n)=>(n+k)%5===0); c.feito=cfg.atividades.filter((_,n)=>(n+k)%4===1);
+      cfg.caixas.forEach((x,n)=>{ if((n+k)%3===0) c.cx[x]=1+(n+k)%4; });
+      c.obsTurno = k%2?'':'KC 03 do secundário com a placa danificada';
+      S.cur=c; const r=montaRec(); r.id='ex'+k; db.push(r);
+    }
+    db.sort((a,b)=>new Date(b.data_hora)-new Date(a.data_hora)); A.grava(); S.cur=null; S.ini={op:'',de:'',para:'',fora:[]}; R(); avisa('12 passagens de exemplo criadas.','success'); },
+  csv(){
+    const cols=['data_hora','operador','turno_de','turno_para','status','motivo','problemas','itens_com_problema','medidas','nao_feitos','ativ_proximo','ativ_feitas','caixas','observacoes'];
+    const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const rows=db.map(p=>[fmt(p.data_hora),p.operador,p.de,p.para,p.status,p.motivo,p.problemas,p.itens.filter(i=>i.ruim).map(i=>i.nome+': '+i.texto+(i.obs?' ('+i.obs+')':'')).join(' | '),p.itens.filter(i=>i.kind!=='op').map(i=>i.nome+': '+i.texto+' '+i.resp+(i.un?' '+i.un:'')).join(' | '),(p.naoFeitos||[]).join(' | '),p.prox.join(' | '),p.feito.join(' | '),p.caixas.map(c=>c.nome+' '+c.n).join(' | '),p.obs.join(' | ')].map(q).join(';'));
+    const b=new Blob(['﻿'+cols.join(';')+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='Passagens_de_turno.csv'; a.click(); },
+  editor(){ S.draft=clone(cfg); S.tela='editor'; R(true); },
+  edOpc(i,v){ const P=S.draft.perg[S.edTipo], p=P[i];
+    if(v==='num'){ p.kind='num'; p.un=p.un||'bar'; delete p.op1; delete p.op2; S.draft.perg[S.edTipo]=P.filter(x=>!(x.kind==='tx'&&x.depq===p.q)); R(); return; }
+    p.kind='op'; delete p.un; if(v==='sn'){p.op1='Sim';p.op2='Não';} else if(v==='dp'){p.op1='Dentro do parâmetro';p.op2='Fora do parâmetro';} else {p.op1=!p.op1||p.op1==='Sim'||p.op1==='Dentro do parâmetro'?'':p.op1;p.op2=!p.op2||p.op2==='Não'||p.op2==='Fora do parâmetro'?'':p.op2;}
+    S.draft.perg[S.edTipo].forEach(x=>{ if(x.kind==='tx'&&x.depq===p.q) x.depv=p.op2; }); R(); },
+  edMov(i,d){ const P=S.draft.perg[S.edTipo],j=i+d; if(j<0||j>=P.length) return; [P[i],P[j]]=[P[j],P[i]]; R(); },
+  edDel(i){ const P=S.draft.perg[S.edTipo],p=P[i]; P.splice(i,1); if(p.kind==='op') S.draft.perg[S.edTipo]=P.filter(x=>!(x.kind==='tx'&&x.depq===p.q)); R(); },
+  novoCod(P,pre){ let n=1; while(P.some(x=>x.q===pre+n)) n++; return pre+n; },
+  edAdd(){ const P=S.draft.perg[S.edTipo]; P.push({q:A.novoCod(P,'n'),texto:'',kind:'op',op1:'Sim',op2:'Não'}); R(); setTimeout(()=>{ const t=document.querySelectorAll('.ed-q textarea'); t[t.length-1].focus(); },30); },
+  edCond(i){ const P=S.draft.perg[S.edTipo],p=P[i]; P.splice(i+1,0,{q:A.novoCod(P,'c'),texto:'',kind:'tx',depq:p.q,depv:p.op2}); R(); },
+  edDep(i,q){ const P=S.draft.perg[S.edTipo],dep=P.find(x=>x.q===q); P[i].depq=q; P[i].depv=dep.op2; },
+  eqMov(i,d){ const E=S.draft.equip,j=i+d; if(j<0||j>=E.length) return; [E[i],E[j]]=[E[j],E[i]]; R(); },
+  eqDel(i){ S.draft.equip.splice(i,1); R(); },
+  eqAdd(){ const E=S.draft.equip; let n=1; while(E.some(e=>e.cod==='eq'+n)) n++; E.push({cod:'eq'+n,nome:'Novo equipamento',tipo:'filtro',ativo:true,cor:'#233176'}); R(); },
+  edValida(d){ for(const t in d.perg){ for(const p of d.perg[t]){ if(!String(p.texto||'').trim()) return 'Há uma pergunta sem texto em "'+(d.tipoNome[t]||t)+'".'; if(p.kind==='op'&&(!p.op1.trim()||!p.op2.trim())) return 'Preencha as duas opções de resposta da pergunta "'+p.texto.slice(0,40)+'".'; } }
+    if(!d.equip.length) return 'Deixe pelo menos um equipamento.'; if(!d.equip.some(e=>e.ativo)) return 'Deixe pelo menos um equipamento em uso.';
+    if(!d.operadores.length) return 'Cadastre pelo menos um operador.'; if(d.turnos.length<2) return 'Cadastre pelo menos dois turnos.'; return ''; },
+  edSalvar(){ const m=A.edValida(S.draft); if(m){ avisa(m,'warn'); return; } cfg=clone(S.draft); LS.set('pt_cfg',cfg); S.tela='adm'; R(true); avisa('Configuração salva. Faça uma passagem para testar.','success'); },
+  edTexto(){ return JSON.stringify(S.draft,null,1); },
+  edCopiar(){ const t=A.edTexto(); (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>avisa('Configuração copiada.','success'),()=>A.edBaixar()); },
+  edBaixar(){ const b=new Blob([A.edTexto()],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='configuracao_passagem_turno.json'; a.click(); },
+  edPadrao(){ S.draft=clone(PADRAO); cfg=clone(PADRAO); LS.set('pt_cfg',cfg); R(); avisa('Voltou ao padrão do app.','info'); }
+};
+S.ini={op:'',de:'',para:'',fora:[]};
+
+/* ---------------------------------------------------------------- render */
+function R(topo){
+  const y=window.scrollY, app=$('app');
+  app.classList.toggle('wide', S.tela==='adm');
+  app.innerHTML = ({inicio:telaInicio, eq:telaEq, quadro:telaQuadro, rel:telaRel, adm:telaAdm, editor:telaEditor}[S.tela])();
+  window.scrollTo(0, topo ? 0 : y);
+  aplicaTrava();
+}
+$('fileFoto').addEventListener('change', ev=>A.fotoRecebida(ev.target.files));
+window.addEventListener('resize', ()=>{ if(S.tela==='rel') R(); });
+setInterval(()=>{ const r=$('relogio'); if(r) r.textContent=fmt(new Date()); }, 20000);
+document.getElementById('vis').addEventListener('click', ev=>{ const b=ev.target.closest('button'); if(!b) return;
+  [...ev.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b)); document.body.classList.remove('v-cel','v-pc'); if(b.dataset.v!=='auto') document.body.classList.add('v-'+b.dataset.v);
+  try{ localStorage.setItem('pt_vis', b.dataset.v); }catch(e){} });
+try{ const v=localStorage.getItem('pt_vis'); if(v&&v!=='auto') document.querySelector(`#vis [data-v="${v}"]`).click(); }catch(e){}
+window.addEventListener('afterprint',()=>{});
+R(true);
+</script>
+</body>
+</html>
